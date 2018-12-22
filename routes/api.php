@@ -18,9 +18,13 @@ Route::middleware('auth:api')->get('/user', function (Request $request) {
 });
 
 Route::group(['namespace' => 'Admin',], function ($router) {
-    Route::post('login', 'AdminUserController@login');
+    Route::get('login', 'AdminUserController@login')->name('login');
     Route::post('register', 'AdminUserController@register');
     Route::post('logout', 'AdminUserController@logout');
     Route::post('refresh', 'AdminUserController@refresh');
+    // 上传营业厅
     Route::post('import', 'BussinessHallController@import');
+    // 添加奖品
+    Route::post('prize', 'PrizeController@addPrize');
+    Route::delete('prize', 'PrizeController@deletePrize');
 });

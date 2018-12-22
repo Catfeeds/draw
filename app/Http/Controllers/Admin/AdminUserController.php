@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Admin;
 
+use Validator;
 use Illuminate\Http\Request;
 use App\Http\Controllers\Controller;
 use App\Model\AdminUser;
@@ -21,13 +22,20 @@ class AdminUserController extends Controller
 
     public function register(Request $request)
     {
+        $valid = Validator::make($request->all(), [
+            'username' => 'required|unique:admin_user|min:6|max:100',
+            'password' => 'required|min:6'
+        ]);
+        if ($valid->fails()) {
+            return $this->error($valid->errors()->first());
+        }
         $user = new AdminUser;
         $user->username = $request->post('username');
         $user->password = bcrypt($request->post('password'));
-        $user->save();
-
-        $token = JWTAuth::fromUser($user);
-        return $token;
+        if ($user->save()) {
+            return $this->response(['user_id' => $user->admin_user_id]);
+        }
+        return $this->error('failed');
     }
 
     /**
@@ -39,11 +47,14 @@ class AdminUserController extends Controller
     {
         $credentials = request(['username', 'password']);
 
-        if (! $token = JWTAuth::attempt($credentials)) {
-            return response()->json(['error' => 'Unauthorized'], 401);
+        if (! $token = auth('api')->attempt($credentials)) {
+            return $this->error('Unauthorized', 401);
         }
-
-        return $this->respondWithToken($token);
+        return $this->response([
+            'token' => $token,
+            'token_type' => 'bearer',
+            'expire_in' => auth('api')->factory()->getTTL() * 60
+        ]);
     }
 
     /**
@@ -54,8 +65,7 @@ class AdminUserController extends Controller
     public function logout()
     {
         auth('api')->logout();
-
-        return response()->json(['message' => 'Successfully logged out']);
+        return $this->success();
     }
 
     /**
@@ -66,22 +76,10 @@ class AdminUserController extends Controller
      */
     public function refresh()
     {
-        return $this->respondWithToken(auth('api')->refresh());
-    }
-
-    /**
-     * Get the token array structure.
-     *
-     * @param  string $token
-     *
-     * @return \Illuminate\Http\JsonResponse
-     */
-    protected function respondWithToken($token)
-    {
-        return response()->json([
-            'access_token' => $token,
+        return $this->response([
+            'token' => auth('api')->refresh(),
             'token_type' => 'bearer',
-            'expires_in' => auth('api')->factory()->getTTL() * 60
+            'expire_in' => auth('api')->factory()->getTTL() * 60
         ]);
     }
 }
