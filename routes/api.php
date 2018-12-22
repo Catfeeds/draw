@@ -16,3 +16,11 @@ use Illuminate\Http\Request;
 Route::middleware('auth:api')->get('/user', function (Request $request) {
     return $request->user();
 });
+
+Route::group(['namespace' => 'Admin',], function ($router) {
+    Route::post('login', 'AdminUserController@login');
+    Route::post('register', 'AdminUserController@register');
+    Route::post('logout', 'AdminUserController@logout');
+    Route::post('refresh', 'AdminUserController@refresh');
+
+});
