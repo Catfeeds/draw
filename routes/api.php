@@ -22,5 +22,5 @@ Route::group(['namespace' => 'Admin',], function ($router) {
     Route::post('register', 'AdminUserController@register');
     Route::post('logout', 'AdminUserController@logout');
     Route::post('refresh', 'AdminUserController@refresh');
-
+    Route::post('import', 'BussinessHallController@import');
 });
