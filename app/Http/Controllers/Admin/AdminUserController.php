@@ -23,7 +23,7 @@ class AdminUserController extends Controller
     public function register(Request $request)
     {
         $valid = Validator::make($request->all(), [
-            'username' => 'required|unique:admin_user|min:6|max:100',
+            'username' => 'required|unique:admin_user|min:4|max:100',
             'password' => 'required|min:6'
         ]);
         if ($valid->fails()) {
