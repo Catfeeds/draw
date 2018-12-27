@@ -166,6 +166,7 @@ return [
          * Package Service Providers...
          */
         Maatwebsite\Excel\ExcelServiceProvider::class,
+        Ixudra\Curl\CurlServiceProvider::class,
 
 
         /*
@@ -229,6 +230,7 @@ return [
         'JWTAuth' => 'Tymon\JWTAuth\Facades\JWTAuth',
         'JWTFactory' => 'Tymon\JWTAuth\Facades\JWTFactory',
         'Excel' => Maatwebsite\Excel\Facades\Excel::class,
+        'Curl' => Ixudra\Curl\Facades\Curl::class,
 
     ],
 
