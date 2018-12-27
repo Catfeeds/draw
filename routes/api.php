@@ -17,6 +17,6 @@ Route::middleware('auth:api')->get('/user', function (Request $request) {
     return $request->user();
 });
 
-Route::group(['namespace' => 'Admin',], function ($router) {
-
+Route::group(['namespace' => 'Web',], function ($router) {
+    Route::get('index', 'DrawController@index');
 });
