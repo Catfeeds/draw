@@ -141,6 +141,12 @@ class DrawController extends Controller
             DB::beginTransaction();
             // 开始抽奖
             $award = $this->getRand($data);
+            // 更新抽奖次数
+            $wx_user->draw_number--;
+            if (!$wx_user->save()) {
+                DB::rollBack();
+                return $this->error('更新用户抽奖次数失败');
+            }
             // 中将处理
             if ($award['award_level'] != 0) {
                 // 检查库存
@@ -162,7 +168,7 @@ class DrawController extends Controller
                 $active_prize->active_surplus_number--;
                 if (!$active_prize->save()) {
                     DB::rollBack();
-                    return $this->error();
+                    return $this->error('更新活动奖品库存失败');
                 }
                 // 更新总奖品表库存
                 $prize = Prize::query()->find($award['prize_id']);
@@ -177,7 +183,7 @@ class DrawController extends Controller
                 $prize->surplus_number--;
                 if (!$prize->save()) {
                     DB::rollBack();
-                    return $this->error();
+                    return $this->error('更新奖品库存失败');
                 }
                 // 写入中奖记录
                 $award_record = new Award;
