@@ -203,6 +203,7 @@ class DrawController extends Controller
                     'award_level' => $award['award_level']
                 ]);
             } else {
+                DB::commit();
                 // 未中奖
                 return $this->response([
                     'prize_id' => 0,
