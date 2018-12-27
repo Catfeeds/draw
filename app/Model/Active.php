@@ -10,4 +10,9 @@ class Active extends Model
     protected $dateFormat = 'U';
     protected $dates = ['deleted_at'];
     protected $primaryKey = 'active_id';
+
+    public function prizes()
+    {
+        return $this->hasMany('App\Model\ActivePrize', 'active_id', 'active_id');
+    }
 }

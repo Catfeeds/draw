@@ -19,4 +19,5 @@ Route::middleware('auth:api')->get('/user', function (Request $request) {
 
 Route::group(['namespace' => 'Web',], function ($router) {
     Route::get('index', 'DrawController@index');
+    Route::post('draw', 'DrawController@draw');
 });
