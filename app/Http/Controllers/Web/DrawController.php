@@ -14,9 +14,42 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Redis;
 use Validator;
+use JWTFactory;
+use JWTAuth;
 
 class DrawController extends Controller
 {
+    public function __construct()
+    {
+        $this->middleware('auth:api', ['except' => ['login']]);
+    }
+
+    /**
+     * 登陆
+     * @param Request $request
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function login(Request $request)
+    {
+        $valid = Validator::make($request->all(), [
+            'code' => 'required',
+        ]);
+        if ($valid->fails()) {
+            return $this->error($valid->errors()->first());
+        }
+        // TODO 获取用户信息并保存
+        $wx_user_id = 1;
+        $wx_user = WxUser::find($wx_user_id);
+
+
+        $token = auth('api')->fromUser($wx_user);
+        return $this->response([
+            'token' => $token,
+            'token_type' => 'bearer',
+            'expire_in' => auth('api')->factory()->getTTL() * 60
+        ]);
+    }
+
     /**
      * 活动首页
      * @param Request $request
@@ -25,37 +58,8 @@ class DrawController extends Controller
     public function index(Request $request)
     {
         try {
-            $wx_username = $request->input('wx_username', 'test');
-            if (empty($wx_username)) {
-                return $this->error('wx_username必须');
-            }
-            $wx_user = WxUser::query()->where('wx_username', $wx_username)->first();
-            if (!$wx_user) {
-                // TODO 获取用户信息并保存
-            }
-            // 每日第一次登陆签到
-            $key = 'first_login_' . $wx_user->wx_user_id;
-            $first_login = Redis::get($key);
-            if (empty($first_login) || $first_login < time()) {
-                DB::beginTransaction();
-                $sign = new Sign;
-                $sign->sign_time = time();
-                $sign->ip = $request->getClientIp();
-                $sign->wx_user_id = $wx_user->wx_user_id;
-                if (!$sign->save()) {
-                    return $this->error('签到失败');
-                }
-                $wx_user->draw_number++;
-                if (!$wx_user->save()) {
-                    return $this->error('更新用户抽奖次数失败');
-                }
-                $res = Redis::set($key, strtotime(date('Y-m-d')) + 86400);
-                if (!$res) {
-                    DB::rollBack();
-                    return $this->error('签到失败');
-                }
-                DB::commit();
-            }
+            // 解析token
+            $wx_user = JWTAuth::parseToken()->authenticate();
             // 获取活动信息
             $active = Active::query()
                 ->select(['active_id', 'active_name', 'must_award', 'created_at'])
@@ -63,6 +67,54 @@ class DrawController extends Controller
                 ->orderBy('created_at', 'desc')
                 ->first();
             $active->prizes;
+
+            // 每日第一次登陆签到
+            $key = date('Ymd') . '_first_login_' . $wx_user->wx_user_id;
+            $first_login = Redis::exists($key);
+            if (empty($first_login)) {
+                DB::beginTransaction();
+                // 写入签到记录
+                $sign = new Sign;
+                $sign->created_at = time();
+                $sign->ip = $request->getClientIp();
+                $sign->wx_user_id = $wx_user->wx_user_id;
+                if (!$sign->save()) {
+                    return $this->error('签到失败');
+                }
+                // 增加用户抽奖次数
+                $wx_user->draw_number++;
+                if (!$wx_user->save()) {
+                    return $this->error('更新用户抽奖次数失败');
+                }
+                // 每日首次登陆标记
+                $res = Redis::setex($key, 90000, 1);
+                if (!$res) {
+                    DB::rollBack();
+                    return $this->error('签到失败');
+                }
+                DB::commit();
+
+                // 统计登陆天数
+                $must_award_day = $active->must_award;
+                $today_end_time = strtotime(date('Ymd'));
+                $before_time = strtotime(date('Ymd', strtotime("-$must_award_day day")));
+                $sign_day = Sign::query()
+                    ->where('wx_user_id', $wx_user->wx_user_id)
+                    ->whereBetween('s', [$before_time, $today_end_time])
+                    ->count();
+                if ($sign_day == $must_award_day) {
+                    $res = Sign::query()
+                        ->where('wx_user_id', $wx_user->wx_user_id)
+                        ->whereBetween('created_at', [$before_time, $today_end_time])
+                        ->update(['continuous' => 1]);
+                    if (!$res) {
+                        return $this->error('更新签到天数失败');
+                    }
+                    // 满足连续签到N天必中
+                    Redis::setex(date('Ymd') . '_must_award_' . $wx_user->wx_user_id, 9000, 1);
+                }
+            }
+
             return $this->response($active);
         } catch (\Exception $exception) {
             DB::rollBack();
@@ -114,7 +166,7 @@ class DrawController extends Controller
                 }
                 // 当天奖品数量已抽完，从奖项数组中剔除
                 // 每天奖品抽奖数量使用key标记，抽中递增
-                $keyword = date('Ymd') . '_' . $value['prize_id'];
+                $keyword = date('Ymd') . '_prizenum_' . $value['prize_id'];
                 $exists = Redis::exists($keyword);
                 if ($exists) {
                     $every_day_number = Redis::get($keyword);
@@ -130,13 +182,16 @@ class DrawController extends Controller
                 $data[$key]['chance'] = $value['chance'];
                 $data[$key]['award_level'] = $value['award_level'];
             }
-            // 中奖概率不足100，使用未中奖填充
-            if ($chance < 100) {
-                $data[] = [
-                    'prize_id' => 0,
-                    'chance' => 100 - $chance,
-                    'award_level' => 0
-                ];
+            $must_award = Redis::exists(date('Ymd') . '_must_award_' . $wx_user->wx_user_id);
+            if (!$must_award) {
+                // 不是N天必中，中奖概率不足100，使用未中奖填充
+                if ($chance < 100) {
+                    $data[] = [
+                        'prize_id' => 0,
+                        'chance' => 100 - $chance,
+                        'award_level' => 0
+                    ];
+                }
             }
             DB::beginTransaction();
             // 开始抽奖
@@ -203,6 +258,8 @@ class DrawController extends Controller
                     'award_level' => $award['award_level']
                 ]);
             } else {
+                // 未中奖提交事务，更新用户抽奖次数
+                DB::commit();
                 // 未中奖
                 return $this->response([
                     'prize_id' => 0,
@@ -221,7 +278,8 @@ class DrawController extends Controller
      * @param $proArr
      * @return array
      */
-    function getRand($proArr) {
+    function getRand($proArr)
+    {
         $result = array();
         foreach ($proArr as $key => $val) {
             $arr[$key] = $val['chance'];
