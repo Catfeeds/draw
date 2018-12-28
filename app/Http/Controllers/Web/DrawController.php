@@ -31,15 +31,16 @@ class DrawController extends Controller
      */
     public function login(Request $request)
     {
-        $valid = Validator::make($request->all(), [
-            'code' => 'required',
-        ]);
-        if ($valid->fails()) {
-            return $this->error($valid->errors()->first());
-        }
-        // TODO 获取用户信息并保存
-        $wx_user_id = 1;
-        $wx_user = WxUser::find($wx_user_id);
+//        $valid = Validator::make($request->all(), [
+//            'code' => 'required',
+//        ]);
+//        if ($valid->fails()) {
+//            return $this->error($valid->errors()->first());
+//        }
+//        // TODO 获取用户信息并保存
+//        $wx_user_id = 1;
+//        $wx_user = WxUser::find($wx_user_id);
+        $wx_user = WxUser::first();
 
 
         $token = auth('api')->fromUser($wx_user);
