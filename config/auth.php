@@ -43,7 +43,7 @@ return [
 
         'api' => [
             'driver' => 'jwt',
-            'provider' => 'users',
+            'provider' => 'web',
         ],
 
         'admin' => [
@@ -74,6 +74,11 @@ return [
             'driver' => 'eloquent',
             'model' => App\Model\AdminUser::class,
         ],
+
+        'web' => [
+            'driver' => 'eloquent',
+            'model' => App\Model\WxUser::class,
+        ]
 
         // 'users' => [
         //     'driver' => 'database',
