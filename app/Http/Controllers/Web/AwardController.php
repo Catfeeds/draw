@@ -81,11 +81,10 @@ class AwardController extends Controller
             // 生成兑换码，兑换码重复重试4次
             $code = '';
             for ($i = 0; $i < 5; $i++) {
-                $random_str = str_random(32);
-                $str = substr(md5($random_str), 0, 11);
-                $exists = ExchangeCode::query()->where('exchange_code', $str)->count();
+                $random_str = str_random(10);
+                $exists = ExchangeCode::query()->where('exchange_code', $random_str)->count();
                 if (!$exists) {
-                    $code = $str;
+                    $code = $random_str;
                     break;
                 }
             }
@@ -94,19 +93,8 @@ class AwardController extends Controller
             }
             DB::beginTransaction();
             $expire_time = strtotime('+3 day');
+
             // 保存用户兑换码
-            $exchange_code = new ExchangeCode;
-            $exchange_code->exchange_code = $code;
-            $exchange_code->expire_time = $expire_time;
-            $exchange_code->prize_id = $award->prize_id;
-            $exchange_code->prize_id = $award->award_id;
-            $exchange_code->wx_user_id = $wx_user->wx_user_id;
-            $exchange_code->business_hall_id = $request->business_id;
-            if (!$exchange_code->save()) {
-                DB::rollBack();
-                return $this->error('保存兑换码失败');
-            }
-            // 写入兑换码表
             $award->exchange_code = $code;
             $award->expire_time = $expire_time;
             $award->business_hall_id = $request->business_id;
@@ -129,5 +117,29 @@ class AwardController extends Controller
             Log::error($exception->getMessage());
             return $this->error();
         }
+    }
+
+    /**
+     * 营业厅列表
+     * @param Request $request
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function businessHall(Request $request)
+    {
+        $area = $request->input('area', '');
+        $province = $request->input('province', '');
+        $business_hall_name = $request->input('business_name', '');
+        $business_hall = BusinessHall::query();
+        if (!empty($area)) {
+            $business_hall->where('area', 'like', "%$area%");
+        }
+        if (!empty($province)) {
+            $business_hall->where('province', 'like', "%$province%");
+        }
+        if (!empty($business_hall_name)) {
+            $business_hall->where('business_hall_name', 'like', "%$business_hall_name%");
+        }
+        $list = $business_hall->paginate();
+        return $this->response($list);
     }
 }

@@ -23,4 +23,5 @@ Route::group(['namespace' => 'Web',], function () {
     Route::post('draw', 'DrawController@draw');
     Route::get('award', 'AwardController@awardRecord');
     Route::get('exchange', 'AwardController@exchange');
+    Route::get('business', 'AwardController@businessHall');
 });
