@@ -70,7 +70,7 @@ class DrawController extends Controller
             $active->prizes;
 
             // 每日第一次登陆签到
-            $key = date('Ymd') . '_first_login_' . $wx_user->wx_user_id;
+            $key = 'php_first_login_' . $wx_user->wx_user_id . '_' . date('Ymd');
             $first_login = Redis::exists($key);
             if (empty($first_login)) {
                 DB::beginTransaction();
@@ -112,7 +112,7 @@ class DrawController extends Controller
                         return $this->error('更新签到天数失败');
                     }
                     // 满足连续签到N天必中
-                    Redis::setex(date('Ymd') . '_must_award_' . $wx_user->wx_user_id, 9000, 1);
+                    Redis::setex('php_must_award_' . $wx_user->wx_user_id . '_' . date('Ymd'), 9000, 1);
                 }
             }
 
@@ -167,7 +167,7 @@ class DrawController extends Controller
                 }
                 // 当天奖品数量已抽完，从奖项数组中剔除
                 // 每天奖品抽奖数量使用key标记，抽中递增
-                $keyword = date('Ymd') . '_prizenum_' . $value['prize_id'];
+                $keyword = 'php_prize_num_' . $value['prize_id'] . '_' . date('Ymd');
                 $exists = Redis::exists($keyword);
                 if ($exists) {
                     $every_day_number = Redis::get($keyword);
@@ -183,7 +183,7 @@ class DrawController extends Controller
                 $data[$key]['chance'] = $value['chance'];
                 $data[$key]['award_level'] = $value['award_level'];
             }
-            $must_award = Redis::exists(date('Ymd') . '_must_award_' . $wx_user->wx_user_id);
+            $must_award = Redis::exists('php_must_award_' . $wx_user->wx_user_id . '_' . date('Ymd'));
             if (!$must_award) {
                 // 不是N天必中，中奖概率不足100，使用未中奖填充
                 if ($chance < 100) {
@@ -219,7 +219,7 @@ class DrawController extends Controller
                     ]);
                 }
                 // 今日奖品抽奖数量加一
-                Redis::incr(date('Ymd') . '_' . $award['prize_id']);
+                Redis::incr('php_prize_num_' . $award['prize_id'] . '_' . date('Ymd'));
                 // 中奖更新活动奖品表库存
                 $active_prize->active_surplus_number--;
                 if (!$active_prize->save()) {

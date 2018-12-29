@@ -9,7 +9,6 @@ use Illuminate\Http\Request;
 use App\Http\Controllers\Controller;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Redis;
 
 class ActiveController extends Controller
 {
@@ -88,14 +87,6 @@ class ActiveController extends Controller
             if (!$result) {
                 DB::rollBack();
                 return $this->error('创建失败');
-            }
-            foreach ($data as $key => $value) {
-                $keyword = $active->active_id . '_' . $value['prize_id'];
-                Redis::hmset($keyword, [
-                    'active_prize_number' => $value['active_prize_number'],
-                    'active_surplus_number' => $value['active_surplus_number'],
-                    'every_day_number' => $value['every_day_number']
-                ]);
             }
             DB::commit();
             return $this->response(['active_id' => $active->active_id]);
