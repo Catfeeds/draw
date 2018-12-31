@@ -101,9 +101,9 @@ class DrawController extends Controller
                 $before_time = strtotime(date('Ymd', strtotime("-$must_award_day day")));
                 $sign_day = Sign::query()
                     ->where('wx_user_id', $wx_user->wx_user_id)
-                    ->whereBetween('s', [$before_time, $today_end_time])
+                    ->whereBetween('created_at', [$before_time, $today_end_time])
                     ->count();
-                if ($sign_day == $must_award_day) {
+                if ($sign_day >= $must_award_day) {
                     $res = Sign::query()
                         ->where('wx_user_id', $wx_user->wx_user_id)
                         ->whereBetween('created_at', [$before_time, $today_end_time])
@@ -116,6 +116,7 @@ class DrawController extends Controller
                 }
             }
 
+            $active['first_login'] = empty($first_login) ? false : true;
             return $this->response($active);
         } catch (\Exception $exception) {
             DB::rollBack();
@@ -184,7 +185,9 @@ class DrawController extends Controller
                 $data[$key]['award_level'] = $value['award_level'];
             }
             $must_award = Redis::exists('php_must_award_' . $wx_user->wx_user_id . '_' . date('Ymd'));
-            if (!$must_award) {
+            if ($must_award) {
+                Redis::del('php_must_award_' . $wx_user->wx_user_id . '_' . date('Ymd'));
+            } else {
                 // 不是N天必中，中奖概率不足100，使用未中奖填充
                 if ($chance < 100) {
                     $data[] = [

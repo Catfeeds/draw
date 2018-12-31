@@ -23,7 +23,7 @@ Route::group(['namespace' => 'Admin',], function () {
     Route::post('logout', 'AdminUserController@logout');
     Route::post('refresh', 'AdminUserController@refresh');
     // 上传营业厅
-    Route::post('import', 'BussinessHallController@import');
+    Route::post('import', 'BusinessHallController@import');
     // 添加奖品
     Route::post('prize', 'PrizeController@addPrize');
     // 删除奖品
@@ -36,4 +36,6 @@ Route::group(['namespace' => 'Admin',], function () {
     Route::post('active', 'ActiveController@addActive');
     // 删除活动
     Route::delete('active', 'ActiveController@deleteActive');
+    // 核销兑换码
+    Route::get('exchange', 'BusinessHallController@checkExchangeCode');
 });

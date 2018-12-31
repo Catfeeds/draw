@@ -18,10 +18,19 @@ Route::middleware('auth:api')->get('/user', function (Request $request) {
 });
 
 Route::group(['namespace' => 'Web',], function () {
+    // 登陆
     Route::get('login', 'DrawController@login');
+    // 抽奖首页
     Route::get('index', 'DrawController@index');
+    // 抽奖
     Route::post('draw', 'DrawController@draw');
+    // 中奖列表
     Route::get('award', 'AwardController@awardRecord');
-    Route::get('exchange', 'AwardController@exchange');
+    // 生成兑换码
+    Route::post('exchange', 'AwardController@exchange');
+    Route::delete('exchange', 'AwardController@deleteCode');
+    // 展示兑换码
+    Route::get('exchange', 'AwardController@getExchangeCode');
+    // 营业厅列表
     Route::get('business', 'AwardController@businessHall');
 });

@@ -11,6 +11,7 @@ use Illuminate\Http\Request;
 use App\Http\Controllers\Controller;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Redis;
 use Validator;
 use JWTFactory;
 use JWTAuth;
@@ -117,6 +118,92 @@ class AwardController extends Controller
             Log::error($exception->getMessage());
             return $this->error();
         }
+    }
+
+    /**
+     * 删除兑换码
+     * @param Request $request
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function deleteCode(Request $request)
+    {
+        try {
+            $award_id = $request->input('award_id');
+            if (empty($award_id)) {
+                return $this->error('award_id必须');
+            }
+            $wx_user = JWTAuth::parseToken()->authenticate();
+            $award = Award::query()->where('wx_user_id', $wx_user->wx_user_id)->find($award_id);
+            if (empty($award)) {
+                return $this->error('award_id不存在');
+            }
+            if ($award->is_exchange) {
+                return $this->error('已经兑奖，不能取消');
+            }
+            $key = 'php_delete_code_' . $wx_user->wx_user_id . '_' . date('Ymd');
+            $exchange_num = Redis::get($key);
+            if (empty($exchange_num)) {
+                Redis::setex($key, 9000, 0);
+            } else {
+                if ($exchange_num >= $wx_user->cancel_exchange_number) {
+                    return $this->error('今日取消兑换码次数用尽');
+                }
+                Redis::incr($key);
+            }
+            DB::beginTransaction();
+            $award->is_exchange = 0;
+            $award->expire_time = 0;
+            $award->exchange_code = '';
+            $award->business_hall_id = 0;
+            $award->business_hall_name = '';
+            if (!$award->save()) {
+                DB::rollBack();
+                return $this->error('取消兑换码失败');
+            }
+
+            $business_prize = BusinessHallPrize::query()
+                ->where(['prize_id' => $award->prize_id, 'business_hall_id' => $award->business_hall_id])
+                ->first();
+            if (!empty($business_prize)) {
+                if ($business_prize->lock_prize_number - 1 < 0) {
+                    return $this->error('锁定库存不足');
+                }
+                $business_prize->decrement('lock_prize_number');
+                $business_prize->increment('business_surplus_number');
+                if (!$business_prize->save()) {
+                    return $this->error('取消兑换码失败');
+                }
+            }
+            DB::commit();
+            return $this->success();
+        } catch (\Exception $exception) {
+            DB::rollBack();
+            Log::error($exception->getMessage());
+            return $this->error();
+        }
+    }
+
+    /**
+     * 展示兑换码
+     * @param Request $request
+     * @return \Illuminate\Http\JsonResponse
+     */
+    function getExchangeCode(Request $request)
+    {
+        $award_id = $request->get('award_id', 0);
+        if (empty($award_id)) {
+            return $this->error('award_id必须');
+        }
+        $wx_user = JWTAuth::parseToken()->authenticate();
+        $award = Award::query()
+            ->select(['prize_name','award_level','business_hall_name','exchange_code','expire_time'])
+            ->where('wx_user_id', $wx_user->wx_user_id)
+            ->find($award_id);
+        if ($award->expire_time < time()) {
+            return $this->error('兑换码已过期');
+        }
+        $award->wx_nickname = $wx_user->nickname;
+        return $this->response($award);
     }
 
     /**
