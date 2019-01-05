@@ -35,7 +35,7 @@ class AwardController extends Controller
         $exchange = $request->input('exchange', 0);
 
         $wx_user = JWTAuth::parseToken()->authenticate();
-        $award = Award::query()->where('wx_user_id', $wx_user->wxUserId);
+        $award = Award::query()->where('wx_user_id', $wx_user->wx_user_id);
         if ($exchange) {
             $award->where('exchange_time', '>', 0);
         }

@@ -116,9 +116,24 @@ class DrawController extends Controller
                 DB::commit();
 
                 // 统计登陆天数
+                $continuous = 0;
+                $today_end_time = strtotime(date('Ymd')) + 86400;
+                for ($i = 0; $i < 1; $i++) {
+                    $sign_day = Sign::query()
+                        ->where('wx_user_id', $wx_user->wx_user_id)
+                        ->where('created_at', '>=', $today_end_time - 86400)
+                        ->where('created_at', '<', $today_end_time)
+                        ->count();
+                    if ($sign_day > 0) {
+                        $continuous++;
+                    } else {
+                        break;
+                    }
+                }
+
+                // 判断是否登陆N天必中
                 $must_award_day = $active->must_award;
-                $today_end_time = strtotime(date('Ymd'));
-                $before_time = strtotime(date('Ymd', strtotime("-$must_award_day day")));
+                $before_time = $today_end_time - $must_award_day * 86400;
                 $sign_day = Sign::query()
                     ->where('wx_user_id', $wx_user->wx_user_id)
                     ->whereBetween('created_at', [$before_time, $today_end_time])
@@ -127,7 +142,7 @@ class DrawController extends Controller
                     $res = Sign::query()
                         ->where('wx_user_id', $wx_user->wx_user_id)
                         ->whereBetween('created_at', [$before_time, $today_end_time])
-                        ->update(['continuous' => 1]);
+                        ->update(['enable_draw' => 1]);
                     if (!$res) {
                         return $this->error('更新签到天数失败');
                     }
@@ -138,6 +153,7 @@ class DrawController extends Controller
             } else {
                 $active['first_login'] = false;
             }
+            $active['continuous'] = $continuous;
             $active['draw_number'] = $wx_user->draw_number;
             return $this->response($active);
         } catch (\Exception $exception) {
@@ -265,6 +281,7 @@ class DrawController extends Controller
                 // 写入中奖记录
                 $award_record = new Award;
                 $award_record->prize_id = $award['prize_id'];
+                $award_record->prize_name = $award['prize_name'];
                 $award_record->award_level = $award['award_level'];
                 $award_record->active_id = $active['active_id'];
                 $award_record->wx_user_id = $wx_user['wx_user_id'];
