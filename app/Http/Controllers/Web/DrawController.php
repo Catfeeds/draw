@@ -357,9 +357,11 @@ class DrawController extends Controller
      * 区列表
      * @return \Illuminate\Http\JsonResponse
      */
-    public function area()
+    public function area(Request $request)
     {
+        $province = $request->input('province');
         $area = BusinessHall::query()->select(['any_value(business_hall_id) as business_hall_id', 'any_value(area) as area'])
+            ->where('province', $province)
             ->groupBy('area')->get();
         return $this->response($area);
     }
