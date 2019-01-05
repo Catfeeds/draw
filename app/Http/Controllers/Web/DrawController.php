@@ -46,14 +46,14 @@ class DrawController extends Controller
             $response = Curl::to($url)->get();
             $response = json_decode($response, true);
 
-            if ($response['errcode'] != 0) {
+            if (isset($response['errcode'])) {
                 return $this->error($response['errmsg']);
             }
 
             $wx_user = WxUser::query()->where('wx_username', $response->unionid)->first();
             if (empty($exists)) {
                 $wx_user = new WxUser;
-                $wx_user->wx_username;
+                $wx_user->wx_username = $response->openid;
                 if (!$wx_user->save()) {
                     $this->error('保存用户信息失败');
                 }
