@@ -226,17 +226,21 @@ class AwardController extends Controller
     {
         $wx_user = JWTAuth::parseToken()->authenticate();
         $award = Award::query()
-            ->select(['prize_name', 'award_level', 'business_hall_name', 'exchange_code', 'expire_time'])
+            ->select([DB::raw('COUNT(*) as prize_number, any_value(award_id) as award_id,
+                any_value(prize_name) as prize_name, any_value(award_level) as award_level,
+                any_value(business_hall_name) as business_hall_name, any_value(exchange_code) as exchange_code,
+                any_value(expire_time) as expire_time')])
             ->where('wx_user_id', $wx_user->wx_user_id)
             ->where('is_exchange', 0)
-            ->first();
+            ->groupBy('prize_id')
+            ->get();
         if (empty($award)) {
             return $this->error('没有中奖信息');
         }
-        if (empty($award['exchange_code'])) {
+        if (empty($award[0]['exchange_code'])) {
             return $this->error('没有兑换码');
         }
-        if ($award->expire_time < time()) {
+        if ($award[0]['expire_time'] < time()) {
             return $this->error('兑换码已过期');
         }
         return $this->response($award);
