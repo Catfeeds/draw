@@ -281,9 +281,10 @@ class AwardController extends Controller
         if (empty($business_id)) {
             return $this->error('business_id必须');
         }
-        return BusinessHallPrize::query()
+        $list = BusinessHallPrize::query()
             ->select(['prize_name', 'business_surplus_number'])
             ->where('business_hall_id', $business_id)
             ->get();
+        return $this->response($list);
     }
 }
