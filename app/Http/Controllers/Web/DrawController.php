@@ -348,7 +348,7 @@ class DrawController extends Controller
      */
     public function province()
     {
-        $province = BusinessHall::query()->select(['any_value(business_hall_id) as business_hall_id', 'any_value(province) as province'])
+        $province = BusinessHall::query()->select([DB::raw('any_value(business_hall_id) as business_hall_id, any_value(province) as province')])
             ->groupBy('province')->get();
         return $this->response($province);
     }
@@ -360,7 +360,7 @@ class DrawController extends Controller
     public function area(Request $request)
     {
         $province = $request->input('province');
-        $area = BusinessHall::query()->select(['any_value(business_hall_id) as business_hall_id', 'any_value(area) as area'])
+        $area = BusinessHall::query()->select([DB::raw('any_value(business_hall_id) as business_hall_id, any_value(area) as area')])
             ->where('province', $province)
             ->groupBy('area')->get();
         return $this->response($area);
