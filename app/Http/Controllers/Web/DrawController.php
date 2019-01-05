@@ -90,6 +90,7 @@ class DrawController extends Controller
             $active->prizes;
 
             // 每日第一次登陆签到
+            $continuous = 0;
             $key = 'php_first_login_' . $wx_user->wx_user_id . '_' . date('Ymd');
             $first_login = Redis::exists($key);
             if (empty($first_login)) {
@@ -116,7 +117,6 @@ class DrawController extends Controller
                 DB::commit();
 
                 // 统计登陆天数
-                $continuous = 0;
                 $today_end_time = strtotime(date('Ymd')) + 86400;
                 for ($i = 0; $i < 1; $i++) {
                     $sign_day = Sign::query()
