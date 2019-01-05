@@ -84,7 +84,7 @@ class AwardController extends Controller
             // 生成兑换码，兑换码重复重试4次
             $code = '';
             for ($i = 0; $i < 5; $i++) {
-                $random_str = str_random(10);
+                $random_str = str_random(8);
                 $exists = ExchangeCode::query()->where('exchange_code', $random_str)->count();
                 if (!$exists) {
                     $code = $random_str;
