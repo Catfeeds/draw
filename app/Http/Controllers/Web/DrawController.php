@@ -138,6 +138,7 @@ class DrawController extends Controller
             } else {
                 $active['first_login'] = false;
             }
+            $active['draw_number'] = $wx_user->draw_number;
             return $this->response($active);
         } catch (\Exception $exception) {
             DB::rollBack();
