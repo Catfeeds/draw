@@ -46,6 +46,7 @@ class DrawController extends Controller
             $response = Curl::to($url)->get();
             $response = json_decode($response, true);
 
+            Log::info($response);
             if (isset($response['errcode'])) {
                 return $this->error($response['errmsg']);
             }
@@ -55,14 +56,14 @@ class DrawController extends Controller
                 $wx_user = new WxUser;
                 $wx_user->wx_username = $response['openid'];
                 if (!$wx_user->save()) {
-                    $this->error('保存用户信息失败');
+                    return $this->error('保存用户信息失败');
                 }
             }
 
             $token = auth('api')->fromUser($wx_user);
             return $this->response([
                 'token' => $token,
-                'unionid' => $response['unionid'],
+                'unionid' => isset($response['unionid']) ? $response['unionid'] : '',
                 'token_type' => 'bearer',
                 'expire_in' => auth('api')->factory()->getTTL() * 60
             ]);
@@ -309,6 +310,20 @@ class DrawController extends Controller
         } catch (\Exception $exception) {
             Log::error($exception->getMessage());
             return $this->error();
+        }
+    }
+
+    function incDrawNumber(Request $request)
+    {
+        $wx_user = JWTAuth::parseToken()->authenticate();
+        $keyword = 'php_prize_num_' . $wx_user->wx_user_id . '_' . date('Ymd');
+        $exists = Redis::exists($keyword);
+        if ($exists) {
+            return $this->error('今日已经分享过');
+        } else {
+            Redis::setex($keyword, 90000, 0);
+            DB::beginTransaction();
+//            $wx_user->
         }
     }
 
