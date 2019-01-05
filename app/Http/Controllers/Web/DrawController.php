@@ -313,17 +313,31 @@ class DrawController extends Controller
         }
     }
 
+    // 增加中奖次数
     function incDrawNumber(Request $request)
     {
-        $wx_user = JWTAuth::parseToken()->authenticate();
-        $keyword = 'php_prize_num_' . $wx_user->wx_user_id . '_' . date('Ymd');
-        $exists = Redis::exists($keyword);
-        if ($exists) {
-            return $this->error('今日已经分享过');
-        } else {
-            Redis::setex($keyword, 90000, 0);
-            DB::beginTransaction();
-//            $wx_user->
+        try {
+            $wx_user = JWTAuth::parseToken()->authenticate();
+            $keyword = 'php_prize_num_' . $wx_user->wx_user_id . '_' . date('Ymd');
+            $exists = Redis::exists($keyword);
+            if ($exists) {
+                return $this->error('今日已经分享过');
+            } else {
+                Redis::setex($keyword, 90000, 0);
+                DB::beginTransaction();
+                $wx_user->increment('draw_number');
+                $wx_user->updated_at = time();
+                if (!$wx_user->save()) {
+                    DB::rollBack();
+                    return $this->error('增加抽奖次数失败');
+                }
+            }
+            DB::commit();
+            return $this->success();
+        } catch (\Exception $exception) {
+            DB::rollBack();
+            Log::error($exception->getMessage());
+            return $this->error();
         }
     }
 
