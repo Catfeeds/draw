@@ -53,7 +53,7 @@ class AwardController extends Controller
     {
         try {
             $valid = Validator::make($request->all(), [
-                'award_id' => 'required|integer',
+                'award_id' => 'required|array',
                 'business_id' => 'required|integer',
             ]);
             if ($valid->fails()) {
@@ -62,23 +62,25 @@ class AwardController extends Controller
             $wx_user = JWTAuth::parseToken()->authenticate();
             // 检查兑奖信息
             $award = Award::find($request->award_id);
-            if ($award->wx_user_id != $wx_user->wx_user_id) {
-                return $this->error('award_id错误');
+            foreach ($award as $key => $value) {
+                if ($value['wx_user_id'] != $wx_user->wx_user_id) {
+                    return $this->error('award_id错误');
+                }
+                if ($value['is_exchange'] != 0) {
+                    return $this->error($value['prize_name'] . ' 已经兑换');
+                }
+                // 检查营业厅
+                $business_prize = BusinessHallPrize::query()
+                    ->where('prize_id', $value['prize_id'])
+                    ->where('business_hall_id', $request->business_id)
+                    ->first();
+                if (empty($value['exchange_code'])) {
+                    if (empty($business_prize) || $business_prize->business_surplus_number - 1 < 0) {
+                        return $this->error('营业厅库存不足');
+                    }
+                }
             }
-            if ($award->is_exchange != 0) {
-                return $this->error('已经兑奖');
-            }
-            if ($award->exchange_code && $award->expire_time > time()) {
-                return $this->error('已经生成兑换码');
-            }
-            // 检查营业厅
-            $business_prize = BusinessHallPrize::query()
-                ->where('prize_id', $award->prize_id)
-                ->where('business_hall_id', $request->business_id)
-                ->first();
-            if (empty($business_prize) || $business_prize->business_surplus_number - 1 < 0) {
-                return $this->error('营业厅库存不足');
-            }
+
             // 生成兑换码，兑换码重复重试4次
             $code = '';
             for ($i = 0; $i < 5; $i++) {
@@ -94,21 +96,57 @@ class AwardController extends Controller
             }
             DB::beginTransaction();
             $expire_time = strtotime('+3 day');
-
-            // 保存用户兑换码
-            $award->exchange_code = $code;
-            $award->expire_time = $expire_time;
-            $award->business_hall_id = $request->business_id;
-            $award->business_hall_name = BusinessHall::query()->find($request->business_id)->business_hall_name;
-            if (!$award->save()) {
-                DB::rollBack();
-                return $this->error('保存兑换码失败');
+            // 清空兑换码
+            $res = Award::query()
+                ->where('wx_user_id', $wx_user->wx_user_id)
+                ->where('is_exchange', 0)
+                ->where('exchange_code', '!=', '')
+                ->get();
+            if (!empty($res)) {
+                foreach ($res as $key => $value) {
+                    $surplus_number = BusinessHallPrize::query()
+                        ->where('prize_id', $value['prize_id'])
+                        ->where('business_hall_id', $value['business_hall_id'])
+                        ->first();
+                    if (!empty($surplus_number)) {
+                        $surplus_number->decrement('lock_prize_number');
+                        $surplus_number->increment('business_surplus_number');
+                    }
+                }
             }
-            // 锁定奖品
-            $business_prize->business_surplus_number--;
-            $business_prize->lock_prize_number++;
-            if (!$business_prize->save()) {
-                return $this->error('保存兑换码失败');
+            $res = Award::query()
+                ->where('wx_user_id', $wx_user->wx_user_id)
+                ->where('is_exchange', 0)
+                ->update([
+                    'exchange_code' => '',
+                    'expire_time' => 0,
+                    'business_hall_id' => 0,
+                    'business_hall_name' => ''
+                ]);
+            if (!$res) {
+                $this->error('清空兑换码失败');
+            }
+            // 保存用户兑换码
+            foreach ($award as $key => $value) {
+                $model = Award::find($value['award_id']);
+                $model->exchange_code = $code;
+                $model->expire_time = $expire_time;
+                $model->business_hall_id = $request->business_id;
+                $model->business_hall_name = BusinessHall::query()->find($request->business_id)->business_hall_name;
+                if (!$model->save()) {
+                    DB::rollBack();
+                    return $this->error('保存兑换码失败');
+                }
+                // 锁定奖品
+                $business_prize = BusinessHallPrize::query()
+                    ->where('prize_id', $value['prize_id'])
+                    ->where('business_hall_id', $request->business_id)
+                    ->first();
+                $business_prize->decrement('business_surplus_number');
+                $business_prize->increment('lock_prize_number');
+                if (!$business_prize->save()) {
+                    return $this->error('保存兑换码失败');
+                }
             }
 
             DB::commit();
@@ -128,18 +166,7 @@ class AwardController extends Controller
     public function deleteCode(Request $request)
     {
         try {
-            $award_id = $request->input('award_id');
-            if (empty($award_id)) {
-                return $this->error('award_id必须');
-            }
             $wx_user = JWTAuth::parseToken()->authenticate();
-            $award = Award::query()->where('wx_user_id', $wx_user->wx_user_id)->find($award_id);
-            if (empty($award)) {
-                return $this->error('award_id不存在');
-            }
-            if ($award->is_exchange) {
-                return $this->error('已经兑奖，不能取消');
-            }
             $key = 'php_delete_code_' . $wx_user->wx_user_id . '_' . date('Ymd');
             $exchange_num = Redis::get($key);
             if (empty($exchange_num)) {
@@ -151,28 +178,35 @@ class AwardController extends Controller
                 Redis::incr($key);
             }
             DB::beginTransaction();
-            $award->is_exchange = 0;
-            $award->expire_time = 0;
-            $award->exchange_code = '';
-            $award->business_hall_id = 0;
-            $award->business_hall_name = '';
-            if (!$award->save()) {
-                DB::rollBack();
-                return $this->error('取消兑换码失败');
+            // 清空兑换码
+            $res = Award::query()
+                ->where('wx_user_id', $wx_user->wx_user_id)
+                ->where('is_exchange', 0)
+                ->where('exchange_code', '!=', '')
+                ->get();
+            if (!empty($res)) {
+                foreach ($res as $key => $value) {
+                    $surplus_number = BusinessHallPrize::query()
+                        ->where('prize_id', $value['prize_id'])
+                        ->where('business_hall_id', $value['business_hall_id'])
+                        ->first();
+                    if (!empty($surplus_number)) {
+                        $surplus_number->decrement('lock_prize_number');
+                        $surplus_number->increment('business_surplus_number');
+                    }
+                }
             }
-
-            $business_prize = BusinessHallPrize::query()
-                ->where(['prize_id' => $award->prize_id, 'business_hall_id' => $award->business_hall_id])
-                ->first();
-            if (!empty($business_prize)) {
-                if ($business_prize->lock_prize_number - 1 < 0) {
-                    return $this->error('锁定库存不足');
-                }
-                $business_prize->decrement('lock_prize_number');
-                $business_prize->increment('business_surplus_number');
-                if (!$business_prize->save()) {
-                    return $this->error('取消兑换码失败');
-                }
+            $res = Award::query()
+                ->where('wx_user_id', $wx_user->wx_user_id)
+                ->where('is_exchange', 0)
+                ->update([
+                    'exchange_code' => '',
+                    'expire_time' => 0,
+                    'business_hall_id' => 0,
+                    'business_hall_name' => ''
+                ]);
+            if (!$res) {
+                $this->error('清空兑换码失败');
             }
             DB::commit();
             return $this->success();
@@ -190,19 +224,21 @@ class AwardController extends Controller
      */
     function getExchangeCode(Request $request)
     {
-        $award_id = $request->get('award_id', 0);
-        if (empty($award_id)) {
-            return $this->error('award_id必须');
-        }
         $wx_user = JWTAuth::parseToken()->authenticate();
         $award = Award::query()
-            ->select(['prize_name','award_level','business_hall_name','exchange_code','expire_time'])
+            ->select(['prize_name', 'award_level', 'business_hall_name', 'exchange_code', 'expire_time'])
             ->where('wx_user_id', $wx_user->wx_user_id)
-            ->find($award_id);
+            ->where('is_exchange', 0)
+            ->first();
+        if (empty($award)) {
+            return $this->error('没有中奖信息');
+        }
+        if (empty($award['exchange_code'])) {
+            return $this->error('没有兑换码');
+        }
         if ($award->expire_time < time()) {
             return $this->error('兑换码已过期');
         }
-        $award->wx_nickname = $wx_user->nickname;
         return $this->response($award);
     }
 
