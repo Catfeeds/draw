@@ -13,6 +13,7 @@ use App\Http\Controllers\Controller;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Redis;
+use Ixudra\Curl\Facades\Curl;
 use Validator;
 use JWTFactory;
 use JWTAuth;
@@ -31,24 +32,43 @@ class DrawController extends Controller
      */
     public function login(Request $request)
     {
-//        $valid = Validator::make($request->all(), [
-//            'code' => 'required',
-//        ]);
-//        if ($valid->fails()) {
-//            return $this->error($valid->errors()->first());
-//        }
-//        // TODO 获取用户信息并保存
-//        $wx_user_id = 1;
-//        $wx_user = WxUser::find($wx_user_id);
-        $wx_user = WxUser::first();
+        try {
+            $valid = Validator::make($request->all(), [
+                'code' => 'required',
+            ]);
+            if ($valid->fails()) {
+                return $this->error($valid->errors()->first());
+            }
+            $app_id = env('APP_ID');
+            $app_secret = env('APP_SECRET');
+            $code = $request->input('code');
+            $url = "https://api.weixin.qq.com/sns/jscode2session?appid=$app_id&secret=$app_secret&js_code=$code&grant_type=authorization_code";
+            $response = Curl::to($url)->get();
+            $response = json_decode($response, true);
 
+            if ($response['errcode'] != 0) {
+                return $this->error($response['errmsg']);
+            }
 
-        $token = auth('api')->fromUser($wx_user);
-        return $this->response([
-            'token' => $token,
-            'token_type' => 'bearer',
-            'expire_in' => auth('api')->factory()->getTTL() * 60
-        ]);
+            $wx_user = WxUser::query()->where('wx_username', $response->unionid)->first();
+            if (empty($exists)) {
+                $wx_user = new WxUser;
+                $wx_user->wx_username;
+                if (!$wx_user->save()) {
+                    $this->error('保存用户信息失败');
+                }
+            }
+
+            $token = auth('api')->fromUser($wx_user);
+            return $this->response([
+                'token' => $token,
+                'token_type' => 'bearer',
+                'expire_in' => auth('api')->factory()->getTTL() * 60
+            ]);
+        } catch (\Exception $exception) {
+            Log::error($exception->getMessage());
+            return $this->error();
+        }
     }
 
     /**
