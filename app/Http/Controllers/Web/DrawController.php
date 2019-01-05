@@ -50,10 +50,10 @@ class DrawController extends Controller
                 return $this->error($response['errmsg']);
             }
 
-            $wx_user = WxUser::query()->where('wx_username', $response->openid)->first();
+            $wx_user = WxUser::query()->where('wx_username', $response['openid'])->first();
             if (empty($wx_user)) {
                 $wx_user = new WxUser;
-                $wx_user->wx_username = $response->openid;
+                $wx_user->wx_username = $response['openid'];
                 if (!$wx_user->save()) {
                     $this->error('保存用户信息失败');
                 }
