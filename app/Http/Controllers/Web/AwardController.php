@@ -109,8 +109,10 @@ class AwardController extends Controller
                         ->where('business_hall_id', $value['business_hall_id'])
                         ->first();
                     if (!empty($surplus_number)) {
-                        $surplus_number->decrement('lock_prize_number');
-                        $surplus_number->increment('business_surplus_number');
+                        if (!$surplus_number->lock_prize_number - 1 < 0) {
+                            $surplus_number->decrement('lock_prize_number');
+                            $surplus_number->increment('business_surplus_number');
+                        }
                     }
                 }
             }
@@ -150,7 +152,7 @@ class AwardController extends Controller
             }
 
             DB::commit();
-            return $this->response(['code' => $code]);
+            return $this->response(['award' => $award, 'exchange_code' => $code]);
         } catch (\Exception $exception) {
             DB::rollBack();
             Log::error($exception->getMessage());
