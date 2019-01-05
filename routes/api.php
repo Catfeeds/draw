@@ -39,4 +39,6 @@ Route::group(['namespace' => 'Web',], function () {
     Route::get('province', 'DrawController@province');
     // 区列表
     Route::get('area', 'DrawController@area');
+    // 营业厅奖品余量
+    Route::get('area', 'AwardController@businessPrize');
 });

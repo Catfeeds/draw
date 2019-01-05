@@ -269,4 +269,21 @@ class AwardController extends Controller
         $list = $business_hall->paginate();
         return $this->response($list);
     }
+
+    /**
+     * 营业厅奖品余量
+     * @param Request $request
+     * @return \Illuminate\Database\Eloquent\Builder[]|\Illuminate\Database\Eloquent\Collection|\Illuminate\Http\JsonResponse
+     */
+    public function businessPrize(Request $request)
+    {
+        $business_id = $request->input('business_id');
+        if (empty($business_id)) {
+            return $this->error('business_id必须');
+        }
+        return BusinessHallPrize::query()
+            ->select(['prize_name', 'business_surplus_number'])
+            ->where('business_hall_id', $business_id)
+            ->get();
+    }
 }
