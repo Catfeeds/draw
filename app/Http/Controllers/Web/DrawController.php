@@ -134,9 +134,10 @@ class DrawController extends Controller
                     // 满足连续签到N天必中
                     Redis::setex('php_must_award_' . $wx_user->wx_user_id . '_' . date('Ymd'), 9000, 1);
                 }
+                $active['first_login'] = true;
+            } else {
+                $active['first_login'] = false;
             }
-
-            $active['first_login'] = empty($first_login) ? false : true;
             return $this->response($active);
         } catch (\Exception $exception) {
             DB::rollBack();
