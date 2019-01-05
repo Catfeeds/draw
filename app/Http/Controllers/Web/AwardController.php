@@ -239,7 +239,6 @@ class AwardController extends Controller
             ->where('exchange_code', '<>', '')
             ->groupBy('prize_id')
             ->get();
-        dd($award->toArray());
         if (empty($award)) {
             return $this->error('没有中奖信息');
         }
