@@ -40,5 +40,5 @@ Route::group(['namespace' => 'Web',], function () {
     // 区列表
     Route::get('area', 'DrawController@area');
     // 营业厅奖品余量
-    Route::get('area', 'AwardController@businessPrize');
+    Route::get('surplus_number', 'AwardController@businessPrize');
 });
