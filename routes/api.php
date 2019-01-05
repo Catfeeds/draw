@@ -33,4 +33,6 @@ Route::group(['namespace' => 'Web',], function () {
     Route::get('exchange', 'AwardController@getExchangeCode');
     // 营业厅列表
     Route::get('business', 'AwardController@businessHall');
+    // 增加抽奖次数
+    Route::post('draw_number', 'DrawController@incDrawNumber');
 });

@@ -38,4 +38,6 @@ Route::group(['namespace' => 'Admin',], function () {
     Route::delete('active', 'ActiveController@deleteActive');
     // 核销兑换码
     Route::get('exchange', 'BusinessHallController@checkExchangeCode');
+    // 确认核销
+    Route::get('confirm', 'BusinessHallController@confirm');
 });
