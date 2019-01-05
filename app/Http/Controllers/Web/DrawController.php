@@ -62,6 +62,7 @@ class DrawController extends Controller
             $token = auth('api')->fromUser($wx_user);
             return $this->response([
                 'token' => $token,
+                'unionid' => $response['unionid'],
                 'token_type' => 'bearer',
                 'expire_in' => auth('api')->factory()->getTTL() * 60
             ]);

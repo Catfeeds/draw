@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Admin;
 
+use App\Model\BusinessHall;
 use Validator;
 use Illuminate\Http\Request;
 use App\Http\Controllers\Controller;
@@ -47,7 +48,7 @@ class AdminUserController extends Controller
     {
         $credentials = request(['username', 'password']);
 
-        if (! $token = auth('admin')->attempt($credentials)) {
+        if (!$token = auth('admin')->attempt($credentials)) {
             return $this->error('Unauthorized', 401);
         }
         return $this->response([
@@ -81,5 +82,10 @@ class AdminUserController extends Controller
             'token_type' => 'bearer',
             'expire_in' => auth('api')->factory()->getTTL() * 60
         ]);
+    }
+
+    public function generateAccount()
+    {
+        BusinessHall::query()->get();
     }
 }
