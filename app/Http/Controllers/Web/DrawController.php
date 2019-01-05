@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Web;
 use App\Model\Active;
 use App\Model\ActivePrize;
 use App\Model\Award;
+use App\Model\BusinessHall;
 use App\Model\Prize;
 use App\Model\Sign;
 use App\Model\WxUser;
@@ -339,6 +340,28 @@ class DrawController extends Controller
             Log::error($exception->getMessage());
             return $this->error();
         }
+    }
+
+    /**
+     * 省份列表
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function province()
+    {
+        $province = BusinessHall::query()->select(['any_value(business_hall_id) as business_hall_id', 'any_value(province) as province'])
+            ->groupBy('province')->get();
+        return $this->response($province);
+    }
+
+    /**
+     * 区列表
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function area()
+    {
+        $area = BusinessHall::query()->select(['any_value(business_hall_id) as business_hall_id', 'any_value(area) as area'])
+            ->groupBy('area')->get();
+        return $this->response($area);
     }
 
     /**

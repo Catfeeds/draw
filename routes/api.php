@@ -35,4 +35,8 @@ Route::group(['namespace' => 'Web',], function () {
     Route::get('business', 'AwardController@businessHall');
     // 增加抽奖次数
     Route::post('draw_number', 'DrawController@incDrawNumber');
+    // 省份列表
+    Route::get('province', 'DrawController@province');
+    // 区列表
+    Route::get('area', 'DrawController@area');
 });
