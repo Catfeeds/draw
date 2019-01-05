@@ -236,8 +236,10 @@ class AwardController extends Controller
                 any_value(expire_time) as expire_time')])
             ->where('wx_user_id', $wx_user->wx_user_id)
             ->where('is_exchange', 0)
+            ->where('exchange_code', '<>', '')
             ->groupBy('prize_id')
             ->get();
+        dd($award->toArray());
         if (empty($award)) {
             return $this->error('没有中奖信息');
         }
