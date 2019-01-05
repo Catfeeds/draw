@@ -156,16 +156,12 @@ class DrawController extends Controller
     {
         try {
             $valid = Validator::make($request->all(), [
-                'wx_username' => 'required',
                 'active_id' => 'required|int'
             ]);
             if ($valid->fails()) {
                 return $this->error($valid->errors()->first());
             }
-            $wx_user = WxUser::query()->where('wx_username', $request->wx_username)->first();
-            if (empty($wx_user)) {
-                return $this->error('用户未注册');
-            }
+            $wx_user = JWTAuth::parseToken()->authenticate();
             if ($wx_user['draw_number'] - 1 < 0) {
                 return $this->error('没有抽奖机会了');
             }
