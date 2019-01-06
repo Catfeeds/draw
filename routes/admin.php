@@ -40,4 +40,7 @@ Route::group(['namespace' => 'Admin',], function () {
     Route::get('exchange', 'BusinessHallController@checkExchangeCode');
     // 确认核销
     Route::get('confirm', 'BusinessHallController@confirm');
+
+    // 随机生成账号
+    Route::get('generate', 'AdminUserController@generateAccount');
 });

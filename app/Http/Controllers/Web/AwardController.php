@@ -74,8 +74,11 @@ class AwardController extends Controller
                     ->where('prize_id', $value['prize_id'])
                     ->where('business_hall_id', $request->business_id)
                     ->first();
+                if (empty($business_prize)) {
+                    return $this->error('营业厅库存不足');
+                }
                 if (empty($value['exchange_code'])) {
-                    if (empty($business_prize) || $business_prize->business_surplus_number - 1 < 0) {
+                    if ($business_prize->business_surplus_number - 1 < 0) {
                         return $this->error('营业厅库存不足');
                     }
                 }

@@ -2,7 +2,8 @@
 
 namespace App\Http\Controllers\Admin;
 
-use App\Model\BusinessHall;
+use App\Exports\AccountExport;
+use Maatwebsite\Excel\Facades\Excel;
 use Validator;
 use Illuminate\Http\Request;
 use App\Http\Controllers\Controller;
@@ -18,7 +19,7 @@ class AdminUserController extends Controller
      */
     public function __construct()
     {
-        $this->middleware('auth:admin', ['except' => ['login', 'register']]);
+        $this->middleware('auth:admin', ['except' => ['login', 'register', 'generateAccount']]);
     }
 
     public function register(Request $request)
@@ -86,6 +87,6 @@ class AdminUserController extends Controller
 
     public function generateAccount()
     {
-        BusinessHall::query()->get();
+        return Excel::download(new AccountExport(), 'account.xlsx');
     }
 }
