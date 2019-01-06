@@ -181,7 +181,6 @@ class DrawController extends Controller
                     return $this->error('更新签到天数失败');
                 }
 
-                $wx_user = WxUser::query()->find($wx_user->wx_user_id);
                 $wx_user->sign_days = $continuous;
                 if (!$wx_user->save()) {
                     DB::rollBack();
@@ -212,7 +211,10 @@ class DrawController extends Controller
                     ->select(['continuous'])
                     ->where('wx_user_id', $wx_user->wx_user_id)
                     ->orderBy('created_at', 'desc')
-                    ->first()->continuous;
+                    ->first();
+                if (!empty($continuous)) {
+                    $continuous = $continuous->continuous;
+                }
                 $active['first_login'] = false;
             }
             $active['continuous'] = $continuous;
