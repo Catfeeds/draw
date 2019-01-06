@@ -46,11 +46,11 @@ Route::group(['namespace' => 'Admin',], function () {
     //  分配奖品到营业厅
     Route::post('business', 'PrizeController@businessPrize');
     // 营业厅列表
-    Route::get('business', 'PrizeController@businessList');
+    Route::get('business', 'BusinessHallController@businessList');
     // 省份列表
-    Route::get('province', 'DrawController@province');
+    Route::get('province', 'BusinessHallController@province');
     // 区列表
-    Route::get('area', 'DrawController@area');
+    Route::get('area', 'BusinessHallController@area');
 
     // 随机生成账号
     Route::get('generate', 'AdminUserController@generateAccount');
