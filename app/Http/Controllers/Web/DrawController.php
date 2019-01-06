@@ -34,34 +34,32 @@ class DrawController extends Controller
     public function login(Request $request)
     {
         try {
-//            $valid = Validator::make($request->all(), [
-//                'code' => 'required',
-//            ]);
-//            if ($valid->fails()) {
-//                return $this->error($valid->errors()->first());
-//            }
-//            $app_id = env('APP_ID');
-//            $app_secret = env('APP_SECRET');
-//            $code = $request->input('code');
-//            $url = "https://api.weixin.qq.com/sns/jscode2session?appid=$app_id&secret=$app_secret&js_code=$code&grant_type=authorization_code";
-//            $response = Curl::to($url)->get();
-//            $response = json_decode($response, true);
-//
-//            Log::info($response);
-//            if (isset($response['errcode'])) {
-//                return $this->error($response['errmsg']);
-//            }
-//
-//            $wx_user = WxUser::query()->where('wx_username', $response['openid'])->first();
-//            if (empty($wx_user)) {
-//                $wx_user = new WxUser;
-//                $wx_user->wx_username = $response['openid'];
-//                if (!$wx_user->save()) {
-//                    return $this->error('保存用户信息失败');
-//                }
-//            }
+            $valid = Validator::make($request->all(), [
+                'code' => 'required',
+            ]);
+            if ($valid->fails()) {
+                return $this->error($valid->errors()->first());
+            }
+            $app_id = env('APP_ID');
+            $app_secret = env('APP_SECRET');
+            $code = $request->input('code');
+            $url = "https://api.weixin.qq.com/sns/jscode2session?appid=$app_id&secret=$app_secret&js_code=$code&grant_type=authorization_code";
+            $response = Curl::to($url)->get();
+            $response = json_decode($response, true);
 
-            $wx_user = WxUser::find(2);
+            if (isset($response['errcode'])) {
+                return $this->error($response['errmsg']);
+            }
+
+            $wx_user = WxUser::query()->where('wx_username', $response['openid'])->first();
+            if (empty($wx_user)) {
+                $wx_user = new WxUser;
+                $wx_user->wx_username = $response['openid'];
+                if (!$wx_user->save()) {
+                    return $this->error('保存用户信息失败');
+                }
+            }
+
             $token = auth('api')->fromUser($wx_user);
             return $this->response([
                 'token' => $token,
