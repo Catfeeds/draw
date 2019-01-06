@@ -121,9 +121,16 @@ class PrizeController extends Controller
         $page = $request->input('page', 1);
         $per_page = $request->input('per_page', 10);
         $prize_name = $request->input('prize_name', '');
-        $list = Prize::query()->where('prize_name', $prize_name)
-            ->orderBy('created_at', 'desc')
-            ->paginate($per_page, ['*'], 'page', $page);
+        if (empty($prize_name)) {
+            $list = Prize::query()
+                ->orderBy('created_at', 'desc')
+                ->paginate($per_page, ['*'], 'page', $page);
+        } else {
+            $list = Prize::query()
+                ->where('prize_name', $prize_name)
+                ->orderBy('created_at', 'desc')
+                ->paginate($per_page, ['*'], 'page', $page);
+        }
         return $this->success($list);
     }
 
