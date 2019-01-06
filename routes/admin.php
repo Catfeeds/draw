@@ -45,6 +45,12 @@ Route::group(['namespace' => 'Admin',], function () {
     Route::get('confirm', 'BusinessHallController@confirm');
     //  分配奖品到营业厅
     Route::post('business', 'PrizeController@businessPrize');
+    // 营业厅列表
+    Route::get('business', 'PrizeController@businessList');
+    // 省份列表
+    Route::get('province', 'DrawController@province');
+    // 区列表
+    Route::get('area', 'DrawController@area');
 
     // 随机生成账号
     Route::get('generate', 'AdminUserController@generateAccount');

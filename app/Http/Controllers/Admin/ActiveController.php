@@ -146,6 +146,17 @@ class ActiveController extends Controller
             }
             $active_id = $request->input('active_id');
             DB::beginTransaction();
+            $active = Active::query()->find($active_id);
+            if (!empty($request->input('active_name'))) {
+                $active->active_name = $request->input('active_name');
+            }
+            if (!empty($request->input('enable'))) {
+                $active->enable = $request->input('enable');
+            }
+            if (!$active->save()) {
+                 DB::rollBack();
+                 return $this->error('修改活动失败');
+            }
             if ($request->has('prize')) {
                 $prize = collect($request->input('prize'));
                 if ($prize->isEmpty()) {
