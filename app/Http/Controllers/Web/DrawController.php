@@ -181,6 +181,7 @@ class DrawController extends Controller
                     return $this->error('更新签到天数失败');
                 }
 
+                $wx_user = WxUser::query()->find($wx_user->wx_user_id);
                 $wx_user->sign_days = $continuous;
                 if (!$wx_user->save()) {
                     DB::rollBack();
