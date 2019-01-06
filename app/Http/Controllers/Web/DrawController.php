@@ -81,12 +81,30 @@ class DrawController extends Controller
     public function saveWxUserInfo(Request $request)
     {
         $wx_user = JWTAuth::parseToken()->authenticate();
-        $wx_user->wx_nickname = $request->input('nickname', '');
-        $wx_user->head = $request->input('head', '');
-        $wx_user->gender = $request->input('gender', 1);
-        $wx_user->country = $request->input('country', '');
-        $wx_user->city = $request->input('city', '');
-        $wx_user->province = $request->input('province', '');
+        $head = $request->input('avatarUrl', '');
+        $wx_nickname = $request->input('nickName', '');
+        $gender = $request->input('gender', 1);
+        $country = $request->input('country', '');
+        $city = $request->input('city', '');
+        $province = $request->input('province', '');
+        if (!empty($head)) {
+            $wx_user->head = $head;
+        }
+        if (!empty($wx_nickname)) {
+            $wx_user->wx_nickname = $wx_nickname;
+        }
+        if (!empty($gender)) {
+            $wx_user->gender = $gender;
+        }
+        if (!empty($country)) {
+            $wx_user->country = $country;
+        }
+        if (!empty($city)) {
+            $wx_user->city = $city;
+        }
+        if (!empty($province)) {
+            $wx_user->province = $province;
+        }
         if (!$wx_user->save()) {
             return $this->error('保存用户信息失败');
         }
