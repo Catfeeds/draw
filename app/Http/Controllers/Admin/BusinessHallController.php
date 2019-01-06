@@ -117,4 +117,52 @@ class BusinessHallController extends Controller
             return $this->error();
         }
     }
+
+    /**
+     * 营业厅列表
+     * @param Request $request
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function businessList(Request $request)
+    {
+        $area = $request->input('area', '');
+        $province = $request->input('province', '');
+        $business_hall_name = $request->input('business_name', '');
+        $business_hall = BusinessHall::query();
+        if (!empty($area)) {
+            $business_hall->where('area', 'like', "%$area%");
+        }
+        if (!empty($province)) {
+            $business_hall->where('province', 'like', "%$province%");
+        }
+        if (!empty($business_hall_name)) {
+            $business_hall->where('business_hall_name', 'like', "%$business_hall_name%");
+        }
+        $list = $business_hall->paginate();
+        return $this->response($list);
+    }
+
+    /**
+     * 省份列表
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function province()
+    {
+        $province = BusinessHall::query()->select([DB::raw('any_value(business_hall_id) as business_hall_id, any_value(province) as province')])
+            ->groupBy('province')->get();
+        return $this->response($province);
+    }
+
+    /**
+     * 区列表
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function area(Request $request)
+    {
+        $province = $request->input('province');
+        $area = BusinessHall::query()->select([DB::raw('any_value(business_hall_id) as business_hall_id, any_value(area) as area')])
+            ->where('province', $province)
+            ->groupBy('area')->get();
+        return $this->response($area);
+    }
 }
