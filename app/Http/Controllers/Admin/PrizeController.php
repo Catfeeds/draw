@@ -109,12 +109,8 @@ class PrizeController extends Controller
         if ($request->total_number) {
             $prize->total_number = $request->total_number;
         }
-        if ($request->surplus_number) {
-            $prize->surplus_number = $request->surplus_number;
-        }
-        if ($request->description) {
-            $prize->description = $request->description;
-        }
+        $diff = $prize->total_number - $request->total_number;
+        $prize->surplus_number = $prize->surplus_number + $diff;
         if ($request->total_number) {
             $prize->total_number = $request->total_number;
         }
