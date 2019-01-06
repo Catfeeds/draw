@@ -129,6 +129,8 @@ class BusinessHallController extends Controller
         $province = $request->input('province', '');
         $business_hall_name = $request->input('business_name', '');
         $business_hall = BusinessHall::query();
+        $page = $request->input('page', 1);
+        $per_page = $request->input('per_page', 10);
         if (!empty($area)) {
             $business_hall->where('area', 'like', "%$area%");
         }
@@ -138,7 +140,7 @@ class BusinessHallController extends Controller
         if (!empty($business_hall_name)) {
             $business_hall->where('business_hall_name', 'like', "%$business_hall_name%");
         }
-        $list = $business_hall->paginate();
+        $list = $business_hall->paginate($per_page, ['*'], 'page', $page);
         return $this->response($list);
     }
 
