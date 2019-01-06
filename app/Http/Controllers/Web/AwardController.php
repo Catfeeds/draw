@@ -189,7 +189,7 @@ class AwardController extends Controller
             $res = Award::query()
                 ->where('wx_user_id', $wx_user->wx_user_id)
                 ->where('is_exchange', 0)
-                ->where('exchange_code', '!=', '')
+                ->where('exchange_code', '<>', '')
                 ->get();
             if (!empty($res)) {
                 foreach ($res as $key => $value) {

@@ -13,7 +13,7 @@ class Kernel extends ConsoleKernel
      * @var array
      */
     protected $commands = [
-        //
+        \App\Console\Commands\ReleasePrize::class
     ];
 
     /**
@@ -26,6 +26,9 @@ class Kernel extends ConsoleKernel
     {
         // $schedule->command('inspire')
         //          ->hourly();
+        $schedule->command('release:prize')
+            ->timezone('Asia/Shanghai')
+            ->dailyAt('1:00');
     }
 
     /**
