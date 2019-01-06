@@ -9,6 +9,7 @@ use Illuminate\Http\Request;
 use App\Http\Controllers\Controller;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Validator;
 
 class ActiveController extends Controller
 {
@@ -124,6 +125,97 @@ class ActiveController extends Controller
         } catch (\Exception $exception) {
             DB::rollBack();
             Log::error($exception->getMessage());
+            return $this->error($exception->getMessage());
         }
+    }
+
+    /**
+     * 修改活动
+     * @param Request $request
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function updateActive(Request $request)
+    {
+        try {
+            $valid = Validator::make($request->all(), [
+                'active_id' => 'required|integer',
+            ]);
+            if ($valid->fails()) {
+                return $this->error($valid->errors()->first());
+            }
+            $active_id = $request->input('active_id');
+            DB::beginTransaction();
+            if ($request->has('prize')) {
+                $prize = collect($request->input('prize'));
+                if ($prize->isEmpty()) {
+                    return $this->error('奖品不能为空');
+                }
+                $chance = 0;
+                $data = [];
+                $prize->each(function ($item) use ($active_id, &$chance, &$data) {
+                    if (!isset($item['prize_id'])) {
+                        return $this->error('奖品id必须');
+                    }
+                    if (!isset($item['prize_number'])) {
+                        return $this->error('奖品数量必须');
+                    }
+                    if (!isset($item['every_day_number'])) {
+                        return $this->error('没天奖品数量必须');
+                    }
+                    if (!isset($item['chance'])) {
+                        return $this->error('抽奖概率必须');
+                    }
+                    $prize_exist = Prize::query()->find($item['prize_id']);
+                    if (!$prize_exist) {
+                        return $this->error('奖品不存在');
+                    }
+                    if ($prize_exist['surplus_number'] < $item['prize_number']) {
+                        return $this->error('奖品余量不足');
+                    }
+                    if ($item['every_day_number'] > $item['prize_number']) {
+                        return $this->error('每天奖品数量不能大于奖品数量');
+                    }
+                    $data[] = [
+                        'active_id' => $active_id,
+                        'prize_id' => $item['prize_id'],
+                        'prize_name' => $prize_exist['prize_name'],
+                        'active_prize_number' => $item['prize_number'],
+                        'active_surplus_number' => $item['prize_number'],
+                        'every_day_number' => $item['every_day_number'],
+                        'chance' => $item['chance']
+                    ];
+                    $chance += $item['chance'];
+                });
+                $active_prize = ActivePrize::query()->find($request->award_id);
+                if (!$active_prize->delete()) {
+                    return $this->error('删除原奖品失败');
+                }
+                if ($chance > 100) {
+                    DB::rollBack();
+                    return $this->error('抽奖概率在0~100之间');
+                }
+                $result = DB::table('active_prize')->insert($data);
+                if (!$result) {
+                    DB::rollBack();
+                    return $this->error('修改失败');
+                }
+            }
+            DB::commit();
+            return $this->success();
+        } catch (\Exception $exception) {
+            DB::rollBack();
+            Log::error($exception->getMessage());
+            return $this->error();
+        }
+    }
+
+    /**
+     * 活动列表
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function getActive()
+    {
+        $active = Active::query()->orderBy('created_at', 'desc')->first();
+        return $this->response($active);
     }
 }

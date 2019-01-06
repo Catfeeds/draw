@@ -2,7 +2,10 @@
 
 namespace App\Http\Controllers\Admin;
 
+use App\Model\BusinessHallPrize;
 use App\Model\Prize;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Validator;
 use Illuminate\Http\Request;
 use App\Http\Controllers\Controller;
@@ -22,8 +25,8 @@ class PrizeController extends Controller
     public function addPrize(Request $request)
     {
         $valid = Validator::make($request->all(), [
-           'prize_name' => 'required',
-           'total_number' => 'required|integer',
+            'prize_name' => 'required',
+            'total_number' => 'required|integer',
             'image' => 'image',
         ]);
         if ($valid->fails()) {
@@ -122,5 +125,67 @@ class PrizeController extends Controller
             ->orderBy('created_at', 'desc')
             ->paginate($per_page, ['*'], 'page', $page);
         return $this->success($list);
+    }
+
+    /**
+     * 分配奖品到营业厅
+     * @param Request $request
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function businessPrize(Request $request)
+    {
+        try {
+            $valid = Validator::make($request->all(), [
+                'business_id' => 'required|integer',
+                'prize_id' => 'required|integer',
+                'prize_number' => 'required|integer',
+                'prize_name' => 'required|string',
+            ]);
+            if ($valid->fails()) {
+                return $this->error($valid->errors()->first());
+            }
+            // 检查奖品库存
+            $prize = Prize::query()->find($request->prize_id);
+            if (empty($prize) || $prize->surplus_number - $request->prize_number < 0) {
+                return $this->error('奖品库存不足' . $request->prize_number);
+            }
+            // 减库存
+            $prize->decrement('surplus_number', $request->prize_number);
+            if (!$prize->save()) {
+                DB::rollBack();
+                return $this->error('更新奖品表库存失败');
+            }
+            // 营业厅没有奖品添加奖品，已有更新库存
+            $business_prize = BusinessHallPrize::query()
+                ->where('business_hall_id', $request->business_id)
+                ->where('prize_id', $request->prize_id)
+                ->first();
+            DB::beginTransaction();
+            if (empty($business_prize)) {
+                $model = new BusinessHallPrize;
+                $model->prize_id = $request->prize_id;
+                $model->prize_name = $request->prize_name;
+                $model->business_hall_id = $request->business_id;
+                $model->business_prize_number = $request->prize_number;
+                $model->business_surplus_number = $request->prize_number;
+                if (!$model->save()) {
+                    DB::rollBack();
+                    return $this->error('分配奖品失败');
+                }
+            } else {
+                $business_prize->increment('business_prize_number', $request->prize_number);
+                $business_prize->increment('business_surplus_number', $request->prize_number);
+                if (!$business_prize->save()) {
+                    DB::rollBack();
+                    return $this->error('分配奖品失败');
+                }
+            }
+            DB::commit();
+            return $this->success();
+        } catch (\Exception $exception) {
+            DB::rollBack();
+            Log::error($exception->getMessage());
+            return $this->error($exception->getMessage());
+        }
     }
 }

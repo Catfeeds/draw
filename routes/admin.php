@@ -36,10 +36,15 @@ Route::group(['namespace' => 'Admin',], function () {
     Route::post('active', 'ActiveController@addActive');
     // 删除活动
     Route::delete('active', 'ActiveController@deleteActive');
+    // 修改活动
+    Route::post('update/active', 'ActiveController@updateActive');
+    Route::get('active', 'ActiveController@getActive');
     // 核销兑换码
     Route::get('exchange', 'BusinessHallController@checkExchangeCode');
     // 确认核销
     Route::get('confirm', 'BusinessHallController@confirm');
+    //  分配奖品到营业厅
+    Route::post('business', 'PrizeController@businessPrize');
 
     // 随机生成账号
     Route::get('generate', 'AdminUserController@generateAccount');
