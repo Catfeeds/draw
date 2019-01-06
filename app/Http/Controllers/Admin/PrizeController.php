@@ -67,16 +67,8 @@ class PrizeController extends Controller
                 return $this->error($valid->errors()->first());
             }
             DB::beginTransaction();
-            $count = Prize::destroy($request->input('prize_id'));
-            if ($count <= 0) {
-                DB::rollBack();
-                return $this->error('删除奖品失败');
-            }
-            $business_prize = BusinessHallPrize::query()->where('prize_id', $request->prize_id)->delete();
-            if ($business_prize <= 0) {
-                DB::rollBack();
-                return $this->error('删除奖品失败');
-            }
+            Prize::destroy($request->input('prize_id'));
+            BusinessHallPrize::query()->where('prize_id', $request->prize_id)->delete();
             DB::commit();
             return $this->success();
         } catch (\Exception $exception) {
@@ -109,7 +101,7 @@ class PrizeController extends Controller
         if ($request->total_number) {
             $prize->total_number = $request->total_number;
         }
-        $diff = $prize->total_number - $request->total_number;
+        $diff = intval($prize->total_number) - intval($request->total_number);
         $prize->surplus_number = $prize->surplus_number + $diff;
         if ($request->total_number) {
             $prize->total_number = $request->total_number;
