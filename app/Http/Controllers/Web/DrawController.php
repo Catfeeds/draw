@@ -170,6 +170,7 @@ class DrawController extends Controller
                         break;
                     }
                 }
+
                 $sign_continuous = Sign::query()
                     ->where('wx_user_id', $wx_user->wx_user_id)
                     ->orderBy('created_at', 'desc')
@@ -180,6 +181,11 @@ class DrawController extends Controller
                     return $this->error('更新签到天数失败');
                 }
 
+                $wx_user->sign_days = $continuous;
+                if (!$wx_user->save()) {
+                    DB::rollBack();
+                    return $this->error('更新签到天数失败');
+                }
 
                 // 判断是否登陆N天必中
                 $must_award_day = $active->must_award;
