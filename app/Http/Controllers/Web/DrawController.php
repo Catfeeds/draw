@@ -34,33 +34,34 @@ class DrawController extends Controller
     public function login(Request $request)
     {
         try {
-            $valid = Validator::make($request->all(), [
-                'code' => 'required',
-            ]);
-            if ($valid->fails()) {
-                return $this->error($valid->errors()->first());
-            }
-            $app_id = env('APP_ID');
-            $app_secret = env('APP_SECRET');
-            $code = $request->input('code');
-            $url = "https://api.weixin.qq.com/sns/jscode2session?appid=$app_id&secret=$app_secret&js_code=$code&grant_type=authorization_code";
-            $response = Curl::to($url)->get();
-            $response = json_decode($response, true);
+//            $valid = Validator::make($request->all(), [
+//                'code' => 'required',
+//            ]);
+//            if ($valid->fails()) {
+//                return $this->error($valid->errors()->first());
+//            }
+//            $app_id = env('APP_ID');
+//            $app_secret = env('APP_SECRET');
+//            $code = $request->input('code');
+//            $url = "https://api.weixin.qq.com/sns/jscode2session?appid=$app_id&secret=$app_secret&js_code=$code&grant_type=authorization_code";
+//            $response = Curl::to($url)->get();
+//            $response = json_decode($response, true);
+//
+//            Log::info($response);
+//            if (isset($response['errcode'])) {
+//                return $this->error($response['errmsg']);
+//            }
+//
+//            $wx_user = WxUser::query()->where('wx_username', $response['openid'])->first();
+//            if (empty($wx_user)) {
+//                $wx_user = new WxUser;
+//                $wx_user->wx_username = $response['openid'];
+//                if (!$wx_user->save()) {
+//                    return $this->error('保存用户信息失败');
+//                }
+//            }
 
-            Log::info($response);
-            if (isset($response['errcode'])) {
-                return $this->error($response['errmsg']);
-            }
-
-            $wx_user = WxUser::query()->where('wx_username', $response['openid'])->first();
-            if (empty($wx_user)) {
-                $wx_user = new WxUser;
-                $wx_user->wx_username = $response['openid'];
-                if (!$wx_user->save()) {
-                    return $this->error('保存用户信息失败');
-                }
-            }
-
+            $wx_user = WxUser::find(2);
             $token = auth('api')->fromUser($wx_user);
             return $this->response([
                 'token' => $token,
@@ -133,6 +134,16 @@ class DrawController extends Controller
                         break;
                     }
                 }
+                $sign_continuous = Sign::query()
+                    ->where('wx_user_id', $wx_user->wx_user_id)
+                    ->orderBy('created_at', 'desc')
+                    ->first();
+                $sign_continuous->continuous = $continuous;
+                if (!$sign_continuous->save()) {
+                    DB::rollBack();
+                    return $this->error('更新签到天数失败');
+                }
+
 
                 // 判断是否登陆N天必中
                 $must_award_day = $active->must_award;
@@ -154,6 +165,11 @@ class DrawController extends Controller
                 }
                 $active['first_login'] = true;
             } else {
+                $continuous = Sign::query()
+                    ->select(['continuous'])
+                    ->where('wx_user_id', $wx_user->wx_user_id)
+                    ->orderBy('created_at', 'desc')
+                    ->first()->continuous;
                 $active['first_login'] = false;
             }
             $active['continuous'] = $continuous;
