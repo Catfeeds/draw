@@ -349,6 +349,7 @@ class DrawController extends Controller
                 $award_record->award_level = $award['award_level'];
                 $award_record->active_id = $active['active_id'];
                 $award_record->wx_user_id = $wx_user['wx_user_id'];
+                $award_record->wx_nickname = $wx_user['wx_nickname'];
                 if (!$award_record->save()) {
                     DB::rollBack();
                     return $this->error();

@@ -2,11 +2,10 @@
 
 namespace App\Http\Controllers\Admin;
 
-use App\Model\Sign;
+use App\Model\Award;
 use App\Model\WxUser;
 use Illuminate\Http\Request;
 use App\Http\Controllers\Controller;
-use Illuminate\Support\Facades\DB;
 use JWTFactory;
 use JWTAuth;
 
@@ -36,5 +35,29 @@ class WxUserController extends Controller
                 ->paginate($per_page, ['*'], 'page', $page);
         }
         return $this->response($wx_user);
+    }
+
+    /**
+     * 中奖记录
+     * @param Request $request
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function awardRecord(Request $request)
+    {
+        $page = $request->input('page', 1);
+        $per_page = $request->input('per_page', 10);
+        $nickname = $request->input('nickname', '');
+
+        if (empty($nickname)) {
+            $record = Award::query()
+                ->orderBy('created_at', 'desc')
+                ->paginate($per_page, ['*'], 'page', $page);
+        } else {
+            $record = Award::query()
+                ->where('wx_nickname', $nickname)
+                ->orderBy('created_at', 'desc')
+                ->paginate($per_page, ['*'], 'page', $page);
+        }
+        return $this->response($record);
     }
 }

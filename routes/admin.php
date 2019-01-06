@@ -53,6 +53,8 @@ Route::group(['namespace' => 'Admin',], function () {
     Route::get('area', 'BusinessHallController@area');
     // 微信用户列表
     Route::get('wxuser', 'WxUserController@wxUserList');
+    // 中奖记录
+    Route::get('award', 'WxUserController@awardRecord');
 
     // 随机生成账号
     Route::get('generate', 'AdminUserController@generateAccount');
