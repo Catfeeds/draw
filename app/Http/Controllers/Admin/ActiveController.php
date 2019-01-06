@@ -215,7 +215,7 @@ class ActiveController extends Controller
      */
     public function getActive()
     {
-        $active = Active::query()->orderBy('created_at', 'desc')->first();
+        $active = Active::query()->orderBy('created_at', 'desc')->get();
         return $this->response($active);
     }
 }

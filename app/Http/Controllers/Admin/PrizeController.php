@@ -98,10 +98,13 @@ class PrizeController extends Controller
         if ($request->prize_name) {
             $prize->prize_name = $request->prize_name;
         }
+        $diff = $request->total_number - $prize->total_number;
         if ($request->total_number) {
             $prize->total_number = $request->total_number;
         }
-        $diff = intval($prize->total_number) - intval($request->total_number);
+        if ($prize->surplus_number + $diff < 0) {
+            return $this->error('奖品余量不足');
+        }
         $prize->surplus_number = $prize->surplus_number + $diff;
         if ($request->total_number) {
             $prize->total_number = $request->total_number;
