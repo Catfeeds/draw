@@ -74,6 +74,26 @@ class DrawController extends Controller
     }
 
     /**
+     * 保存用户信息
+     * @param Request $request
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function saveWxUserInfo(Request $request)
+    {
+        $wx_user = JWTAuth::parseToken()->authenticate();
+        $wx_user->wx_nickname = $request->input('nickname', '');
+        $wx_user->head = $request->input('head', '');
+        $wx_user->gender = $request->input('gender', 1);
+        $wx_user->country = $request->input('country', '');
+        $wx_user->city = $request->input('city', '');
+        $wx_user->province = $request->input('province', '');
+        if (!$wx_user->save()) {
+            return $this->error('保存用户信息失败');
+        }
+        return $this->success('保存用户信息成功');
+    }
+
+    /**
      * 活动首页
      * @param Request $request
      * @return \Illuminate\Http\JsonResponse

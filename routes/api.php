@@ -41,4 +41,6 @@ Route::group(['namespace' => 'Web',], function () {
     Route::get('area', 'DrawController@area');
     // 营业厅奖品余量
     Route::get('surplus_number', 'AwardController@businessPrize');
+    // 保存用户信息
+    Route::post('bind/user', 'DrawController@saveWxUserInfo');
 });
