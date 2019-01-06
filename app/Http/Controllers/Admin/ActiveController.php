@@ -150,8 +150,8 @@ class ActiveController extends Controller
             if (!empty($request->input('active_name'))) {
                 $active->active_name = $request->input('active_name');
             }
-            if (!empty($request->input('enable'))) {
-                $active->enable = $request->input('enable');
+            if ($request->has('enable')) {
+                $active->enable = $request->input('enable', 0);
             }
             if (!$active->save()) {
                  DB::rollBack();
@@ -217,7 +217,7 @@ class ActiveController extends Controller
         } catch (\Exception $exception) {
             DB::rollBack();
             Log::error($exception->getMessage());
-            return $this->error();
+            return $this->error($exception->getMessage());
         }
     }
 
