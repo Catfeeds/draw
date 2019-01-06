@@ -9,6 +9,7 @@ use Illuminate\Http\Request;
 use App\Http\Controllers\Controller;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Redis;
 use Validator;
 
 class ActiveController extends Controller
@@ -216,6 +217,16 @@ class ActiveController extends Controller
     public function getActive()
     {
         $active = Active::query()->orderBy('created_at', 'desc')->get();
-        return $this->response($active);
+        $data = $active->all();
+        $active->each(function ($item, $key) use (&$data) {
+            $prize = ActivePrize::query()->select([DB::raw('sum(active_prize_number) as active_prize_number,
+            sum(active_surplus_number) as active_surplus_number, sum(every_day_number) as every_day_number')])
+                ->where('active_id', $item->active_id)
+                ->first();
+            $data[$key]['active_prize_number'] = $prize['active_prize_number'];
+            $data[$key]['active_surplus_number'] = $prize['active_surplus_number'];
+            $data[$key]['every_day_number'] = $prize['every_day_number'];
+        });
+        return $this->response($data);
     }
 }
