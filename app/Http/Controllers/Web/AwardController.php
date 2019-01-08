@@ -174,7 +174,7 @@ class AwardController extends Controller
     {
         try {
             $wx_user = JWTAuth::parseToken()->authenticate();
-            $key = 'php_delete_code_' . $wx_user->wx_user_id . '_' . date('Ymd');
+            $key = date('Ymd') . '_php_delete_code_' . $wx_user->wx_user_id;
             $exchange_num = Redis::get($key);
             if (empty($exchange_num)) {
                 Redis::setex($key, 9000, 0);

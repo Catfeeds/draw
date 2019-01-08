@@ -128,7 +128,16 @@ class BusinessHallController extends Controller
         $area = $request->input('area', '');
         $province = $request->input('province', '');
         $business_hall_name = $request->input('business_name', '');
-        $business_hall = BusinessHall::query();
+        $business_hall = BusinessHall::query()
+            ->select(['business_hall_id', 'business_hall_name', 'province', 'area', 'bank'])
+            ->with(['prizes' => function ($query) {
+                $query->select([
+                    'business_hall_id',
+                    'business_prize_number',
+                    'business_surplus_number',
+                    'lock_prize_number'
+                ]);
+            }]);
         $page = $request->input('page', 1);
         $per_page = $request->input('per_page', 10);
         if (!empty($area)) {

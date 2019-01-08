@@ -11,4 +11,9 @@ class BusinessHall extends Model
     protected $dateFormat = 'U';
     protected $primaryKey = 'business_hall_id';
     protected $guarded = [];
+
+    public function prizes()
+    {
+        return $this->hasMany('App\Model\BusinessHallPrize', 'business_hall_id', 'business_hall_id');
+    }
 }

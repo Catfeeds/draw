@@ -221,13 +221,13 @@ class DrawController extends Controller
             $active = Active::query()
                 ->select(['active_id', 'active_name', 'must_award', 'created_at'])
                 ->where('enable', 1)
+                ->where('active_id', $request->active_id)
                 ->orderBy('created_at', 'desc')
                 ->first();
-            $active->prizes;
-
             if (empty($active)) {
                 return $this->error('活动不存在');
             }
+            $active->prizes;
             // 奖项数组
             $chance = 0;
             $data = [];
@@ -250,7 +250,7 @@ class DrawController extends Controller
                     Redis::setex($keyword, 90000, 0);
                 }
                 // 签到必中奖品不放入奖项数组
-                if ($value['must_award_prize'] == 0) {
+                if ($value['must_award_prize'] == 1) {
                     $must_award_prize[]['prize_id'] = $value['prize_id'];
                     $must_award_prize[]['prize_name'] = $value['prize_name'];
                     $must_award_prize[]['chance'] = $value['chance'];
@@ -265,7 +265,17 @@ class DrawController extends Controller
             }
             $must_award = Redis::exists(date('Ymd') . '_php_must_award_' . $wx_user->wx_user_id);
             if ($must_award) {
-                $data = $must_award_prize;
+                if (empty($must_award_prize)) {
+                    Log::warning(
+                        '没有必中奖品或必中奖品库存不足',
+                        [
+                            'wx_user_id' => $wx_user->wx_user_id,
+                            'wx_nickname' => $wx_user->wx_nickname,
+                            'active_id' => $active->active_id
+                        ]);
+                } else {
+                    $data = $must_award_prize;
+                }
                 $result = Redis::del(date('Ymd') . '_php_must_award_' . $wx_user->wx_user_id);
                 if (empty($result)) {
                     return $this->error('更新连续签到必中失败');
@@ -422,6 +432,13 @@ class DrawController extends Controller
     function getRand($proArr)
     {
         $result = array();
+        if (empty($proArr)) {
+            return [
+                'prize_id' => 0,
+                'prize_name' => '谢谢惠顾',
+                'award_level' => 0
+            ];
+        }
         foreach ($proArr as $key => $val) {
             $arr[$key] = $val['chance'];
         }

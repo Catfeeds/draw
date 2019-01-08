@@ -9,7 +9,6 @@ use Illuminate\Http\Request;
 use App\Http\Controllers\Controller;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Redis;
 use Validator;
 
 class ActiveController extends Controller
@@ -27,13 +26,11 @@ class ActiveController extends Controller
     public function addActive(Request $request)
     {
         try {
-            DB::beginTransaction();
-
             $params = $request->all();
             if (empty($params)) {
                 return $this->error('没有添加抽奖奖品');
             }
-
+            DB::beginTransaction();
             $active = new Active;
             $active->active_name = $request->input('active_name', '');
             $active->must_award = $request->input('must_award', 3);
@@ -47,6 +44,7 @@ class ActiveController extends Controller
 
             $chance = 0;
             $data = array();
+            $has_must_award_prize = false;
             foreach ($params['prize'] as $key => $value) {
                 if (!isset($value['prize_id'])) {
                     return $this->error('奖品id必须');
@@ -55,7 +53,7 @@ class ActiveController extends Controller
                     return $this->error('奖品数量必须');
                 }
                 if (!isset($value['every_day_number'])) {
-                    return $this->error('没天奖品数量必须');
+                    return $this->error('每天奖品数量必须');
                 }
                 if (!isset($value['chance'])) {
                     return $this->error('抽奖概率必须');
@@ -70,6 +68,9 @@ class ActiveController extends Controller
                 if ($value['every_day_number'] > $value['prize_number']) {
                     return $this->error('每天奖品数量不能大于奖品数量');
                 }
+                if ($prize_exist->must_award_prize == 1) {
+                    $has_must_award_prize = true;
+                }
                 $data[] = [
                     'active_id' => $active->active_id,
                     'prize_id' => $value['prize_id'],
@@ -79,11 +80,18 @@ class ActiveController extends Controller
                     'every_day_number' => $value['every_day_number'],
                     'chance' => $value['chance']
                 ];
-                $chance += $value['chance'];
+                // 抽奖必中奖品不计算概率
+                if ($prize_exist->must_award_prize == 0) {
+                    $chance += $value['chance'];
+                }
             }
             if ($chance > 100) {
                 DB::rollBack();
                 return $this->error('抽奖概率在0~100之间');
+            }
+            if (!$has_must_award_prize) {
+                DB::rollBack();
+                return $this->error('请添加签到必中奖品');
             }
             $result = DB::table('active_prize')->insert($data);
             if (!$result) {
@@ -164,7 +172,8 @@ class ActiveController extends Controller
                 }
                 $chance = 0;
                 $data = [];
-                $prize->each(function ($item) use ($active_id, &$chance, &$data) {
+                $has_must_award_prize = false;
+                $prize->each(function ($item) use ($active_id, &$chance, &$data, &$has_must_award_prize) {
                     if (!isset($item['prize_id'])) {
                         return $this->error('奖品id必须');
                     }
@@ -187,6 +196,9 @@ class ActiveController extends Controller
                     if ($item['every_day_number'] > $item['prize_number']) {
                         return $this->error('每天奖品数量不能大于奖品数量');
                     }
+                    if ($prize_exist->must_award_prize == 1) {
+                        $has_must_award_prize = true;
+                    }
                     $data[] = [
                         'active_id' => $active_id,
                         'prize_id' => $item['prize_id'],
@@ -196,7 +208,9 @@ class ActiveController extends Controller
                         'every_day_number' => $item['every_day_number'],
                         'chance' => $item['chance']
                     ];
-                    $chance += $item['chance'];
+                    if ($prize_exist->must_award_prize == 0) {
+                        $chance += $item['chance'];
+                    }
                 });
                 $active_prize = ActivePrize::query()->find($request->award_id);
                 if (!$active_prize->delete()) {
@@ -205,6 +219,10 @@ class ActiveController extends Controller
                 if ($chance > 100) {
                     DB::rollBack();
                     return $this->error('抽奖概率在0~100之间');
+                }
+                if (!$has_must_award_prize) {
+                    DB::rollBack();
+                    return $this->error('请添加签到必中奖品');
                 }
                 $result = DB::table('active_prize')->insert($data);
                 if (!$result) {
