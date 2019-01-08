@@ -131,9 +131,24 @@ class DrawController extends Controller
 
             // 每日第一次登陆签到
             $continuous = 0;
-            $key = 'php_first_login_' . $wx_user->wx_user_id . '_' . date('Ymd');
-            $first_login = Redis::exists($key);
-            if (empty($first_login)) {
+            $today_timestamp = strtotime(date('Ymd'));
+            $first_login = Sign::query()
+                ->where('wx_user_id', $wx_user->wx_user_id)
+                ->where('created_at', '>=', $today_timestamp)
+                ->where('created_at', '<', $today_timestamp + 86400)
+                ->count();
+            if ($first_login == 0) {
+                $yesterday_timestamp = strtotime(date('Ymd', strtotime('-1 day')));
+                $yesterday_sign = Sign::query()
+                    ->where('wx_user_id', $wx_user->wx_user_id)
+                    ->where('created_at', '>=', $yesterday_timestamp)
+                    ->where('created_at', '<', strtotime(date('Ymd')))
+                    ->count();
+                if ($yesterday_sign > 0) {
+                    $continuous = $wx_user->sign_days + 1;
+                } else {
+                    $continuous = 1;
+                }
                 DB::beginTransaction();
                 // 写入签到记录
                 $sign = new Sign;
@@ -144,77 +159,34 @@ class DrawController extends Controller
                     return $this->error('签到失败');
                 }
                 // 增加用户抽奖次数
-                $wx_user->draw_number++;
-                if (!$wx_user->save()) {
-                    return $this->error('更新用户抽奖次数失败');
-                }
-                // 每日首次登陆标记
-                $res = Redis::setex($key, 90000, 1);
-                if (!$res) {
-                    DB::rollBack();
-                    return $this->error('签到失败');
-                }
-                DB::commit();
-
-                // 统计登陆天数
-                $today_end_time = strtotime(date('Ymd')) + 86400;
-                for ($i = 0; $i < 1; $i++) {
-                    $sign_day = Sign::query()
-                        ->where('wx_user_id', $wx_user->wx_user_id)
-                        ->where('created_at', '>=', $today_end_time - 86400)
-                        ->where('created_at', '<', $today_end_time)
-                        ->count();
-                    if ($sign_day > 0) {
-                        $continuous++;
-                    } else {
-                        break;
-                    }
-                }
-
-                $sign_continuous = Sign::query()
-                    ->where('wx_user_id', $wx_user->wx_user_id)
-                    ->orderBy('created_at', 'desc')
-                    ->first();
-                $sign_continuous->continuous = $continuous;
-                if (!$sign_continuous->save()) {
-                    DB::rollBack();
-                    return $this->error('更新签到天数失败');
-                }
-
+                $wx_user->increment('draw_number');
                 $wx_user->sign_days = $continuous;
                 if (!$wx_user->save()) {
-                    DB::rollBack();
-                    return $this->error('更新签到天数失败');
+                    return $this->error('更新用户抽奖次数失败');
                 }
 
                 // 判断是否登陆N天必中
                 $must_award_day = $active->must_award;
-                $before_time = $today_end_time - $must_award_day * 86400;
+                $before_time = ($today_timestamp + 86400) - $must_award_day * 86400;
                 $sign_day = Sign::query()
+                    ->where('enable_draw', 0)
                     ->where('wx_user_id', $wx_user->wx_user_id)
-                    ->whereBetween('created_at', [$before_time, $today_end_time])
+                    ->whereBetween('created_at', [$before_time, $today_timestamp + 86400])
                     ->count();
                 if ($sign_day >= $must_award_day) {
                     $res = Sign::query()
                         ->where('wx_user_id', $wx_user->wx_user_id)
-                        ->whereBetween('created_at', [$before_time, $today_end_time])
+                        ->whereBetween('created_at', [$before_time, $today_timestamp + 86400])
                         ->update(['enable_draw' => 1]);
                     if (!$res) {
                         return $this->error('更新签到天数失败');
                     }
                     // 满足连续签到N天必中
-                    Redis::setex('php_must_award_' . $wx_user->wx_user_id . '_' . date('Ymd'), 9000, 1);
+                    Redis::setex(date('Ymd') . '_php_must_award_' . $wx_user->wx_user_id, 9000, 1);
                 }
+                DB::commit();
                 $active['first_login'] = true;
             } else {
-                $continuous = Sign::query()
-                    ->select(['continuous'])
-                    ->where('wx_user_id', $wx_user->wx_user_id)
-                    ->orderBy('created_at', 'desc')
-                    ->first();
-                if (!empty($continuous)) {
-                    $continuous = $continuous->continuous;
-                }
                 $active['first_login'] = false;
             }
             $active['continuous'] = $continuous;
@@ -259,6 +231,7 @@ class DrawController extends Controller
             // 奖项数组
             $chance = 0;
             $data = [];
+            $must_award_prize = [];
             foreach ($active['prizes'] as $key => $value) {
                 // 奖品没有库存则从奖项数组中剔除
                 if ($value['active_surplus_number'] <= 0) {
@@ -266,7 +239,7 @@ class DrawController extends Controller
                 }
                 // 当天奖品数量已抽完，从奖项数组中剔除
                 // 每天奖品抽奖数量使用key标记，抽中递增
-                $keyword = 'php_prize_num_' . $value['prize_id'] . '_' . date('Ymd');
+                $keyword = date('Ymd') . '_php_prize_num_' . $value['prize_id'];
                 $exists = Redis::exists($keyword);
                 if ($exists) {
                     $every_day_number = Redis::get($keyword);
@@ -276,15 +249,27 @@ class DrawController extends Controller
                 } else {
                     Redis::setex($keyword, 90000, 0);
                 }
+                // 签到必中奖品不放入奖项数组
+                if ($value['must_award_prize'] == 0) {
+                    $must_award_prize[]['prize_id'] = $value['prize_id'];
+                    $must_award_prize[]['prize_name'] = $value['prize_name'];
+                    $must_award_prize[]['chance'] = $value['chance'];
+                    $must_award_prize[]['award_level'] = $value['award_level'];
+                    continue;
+                }
                 $chance += $value['chance'];
                 $data[$key]['prize_id'] = $value['prize_id'];
                 $data[$key]['prize_name'] = $value['prize_name'];
                 $data[$key]['chance'] = $value['chance'];
                 $data[$key]['award_level'] = $value['award_level'];
             }
-            $must_award = Redis::exists('php_must_award_' . $wx_user->wx_user_id . '_' . date('Ymd'));
+            $must_award = Redis::exists(date('Ymd') . '_php_must_award_' . $wx_user->wx_user_id);
             if ($must_award) {
-                Redis::del('php_must_award_' . $wx_user->wx_user_id . '_' . date('Ymd'));
+                $data = $must_award_prize;
+                $result = Redis::del(date('Ymd') . '_php_must_award_' . $wx_user->wx_user_id);
+                if (empty($result)) {
+                    return $this->error('更新连续签到必中失败');
+                }
             } else {
                 // 不是N天必中，中奖概率不足100，使用未中奖填充
                 if ($chance < 100) {
@@ -295,11 +280,11 @@ class DrawController extends Controller
                     ];
                 }
             }
-            DB::beginTransaction();
             // 开始抽奖
+            DB::beginTransaction();
             $award = $this->getRand($data);
             // 更新抽奖次数
-            $wx_user->draw_number--;
+            $wx_user->decrement('draw_number');
             if (!$wx_user->save()) {
                 DB::rollBack();
                 return $this->error('更新用户抽奖次数失败');
@@ -307,12 +292,13 @@ class DrawController extends Controller
             // 中将处理
             if ($award['award_level'] != 0) {
                 // 检查库存
-                $active_prize = ActivePrize::query()->where([
+                $active_prize = ActivePrize::query()->sharedLock()->where([
                     'active_id' => $active->active_id,
                     'prize_id' => $award['prize_id']
                 ])->first();
                 // 库存不足，响应未中奖
                 if (empty($active_prize) || $active_prize->active_surplus_number - 1 < 0) {
+                    DB::commit();
                     return $this->response([
                         'prize_id' => 0,
                         'prize_name' => '谢谢惠顾',
@@ -320,9 +306,9 @@ class DrawController extends Controller
                     ]);
                 }
                 // 今日奖品抽奖数量加一
-                Redis::incr('php_prize_num_' . $award['prize_id'] . '_' . date('Ymd'));
+                Redis::incr(date('Ymd') . '_php_prize_num_' . $award['prize_id']);
                 // 中奖更新活动奖品表库存
-                $active_prize->active_surplus_number--;
+                $active_prize->decrement('active_surplus_number');
                 if (!$active_prize->save()) {
                     DB::rollBack();
                     return $this->error('更新活动奖品库存失败');
@@ -337,7 +323,7 @@ class DrawController extends Controller
                         'award_level' => 0
                     ]);
                 }
-                $prize->surplus_number--;
+                $prize->decrement('surplus_number');
                 if (!$prize->save()) {
                     DB::rollBack();
                     return $this->error('更新奖品库存失败');
@@ -352,7 +338,7 @@ class DrawController extends Controller
                 $award_record->wx_nickname = $wx_user['wx_nickname'];
                 if (!$award_record->save()) {
                     DB::rollBack();
-                    return $this->error();
+                    return $this->error('写入中奖信息失败');
                 }
                 // 抽奖成功
                 DB::commit();
