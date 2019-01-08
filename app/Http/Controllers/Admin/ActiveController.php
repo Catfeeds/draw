@@ -155,6 +155,10 @@ class ActiveController extends Controller
             $active_id = $request->input('active_id');
             DB::beginTransaction();
             $active = Active::query()->find($active_id);
+            if (empty($active)) {
+                DB::rollBack();
+                return $this->error('活动不存在');
+            }
             if (!empty($request->input('active_name'))) {
                 $active->active_name = $request->input('active_name');
             }
@@ -213,8 +217,10 @@ class ActiveController extends Controller
                     }
                 });
                 $active_prize = ActivePrize::query()->find($request->award_id);
-                if (!$active_prize->delete()) {
-                    return $this->error('删除原奖品失败');
+                if (!empty($active_prize)) {
+                    if (!$active_prize->delete()) {
+                        return $this->error('删除原奖品失败');
+                    }
                 }
                 if ($chance > 100) {
                     DB::rollBack();
