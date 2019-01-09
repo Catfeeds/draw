@@ -35,6 +35,7 @@ class ActiveController extends Controller
             $active->active_name = $request->input('active_name', '');
             $active->must_award = $request->input('must_award', 3);
             $active->enable = $request->input('enable', 1);
+            $active->sign_prize_number = $request->input('sign_prize_number', 0);
             $active->start_time = $request->start_time ? strtotime($request->start_time) : 0;
             $active->end_time = $request->end_time ? strtotime($request->end_time) : 0;
             if (!$active->save()) {
@@ -44,7 +45,6 @@ class ActiveController extends Controller
 
             $chance = 0;
             $data = array();
-            $has_must_award_prize = false;
             foreach ($params['prize'] as $key => $value) {
                 if (!isset($value['prize_id'])) {
                     return $this->error('奖品id必须');
@@ -55,21 +55,18 @@ class ActiveController extends Controller
                 if (!isset($value['every_day_number'])) {
                     return $this->error('每天奖品数量必须');
                 }
-                if (!isset($value['chance'])) {
-                    return $this->error('抽奖概率必须');
+                if (isset($value['chance']) && $value['chance'] < 0) {
+                    return $this->error('抽奖概率在0~100之间');
                 }
                 $prize_exist = Prize::query()->find($value['prize_id']);
                 if (!$prize_exist) {
                     return $this->error('奖品不存在');
                 }
                 if ($prize_exist['surplus_number'] < $value['prize_number']) {
-                    return $this->error('奖品余量不足');
+                    return $this->error($prize_exist->prize_name . '余量不足');
                 }
                 if ($value['every_day_number'] > $value['prize_number']) {
-                    return $this->error('每天奖品数量不能大于奖品数量');
-                }
-                if ($prize_exist->must_award_prize == 1) {
-                    $has_must_award_prize = true;
+                    return $this->error($prize_exist->prize_name . '每天奖品数量不能大于奖品数量');
                 }
                 $data[] = [
                     'active_id' => $active->active_id,
@@ -78,20 +75,20 @@ class ActiveController extends Controller
                     'active_prize_number' => $value['prize_number'],
                     'active_surplus_number' => $value['prize_number'],
                     'every_day_number' => $value['every_day_number'],
-                    'chance' => $value['chance']
+                    'chance' => $value['chance'] ?? 0
                 ];
-                // 抽奖必中奖品不计算概率
-                if ($prize_exist->must_award_prize == 0) {
-                    $chance += $value['chance'];
-                }
+                $chance += $value['chance'] ?? 0;
             }
-            if ($chance > 100) {
+            $set_chance_num = collect($params['prize'])->filter(function ($value, $key) {
+                return isset($value['chance']) && !empty($value['chance']);
+            });
+            if ($set_chance_num->count() != count($params['prize']) && $set_chance_num->count() != 0) {
+                DB::rollBack();
+                return $this->error('请设置全部奖品概率或使用默认奖品概率');
+            }
+            if ($set_chance_num->count() == count($params['prize']) && ($chance > 100 || $chance < 0)) {
                 DB::rollBack();
                 return $this->error('抽奖概率在0~100之间');
-            }
-            if (!$has_must_award_prize) {
-                DB::rollBack();
-                return $this->error('请添加签到必中奖品');
             }
             $result = DB::table('active_prize')->insert($data);
             if (!$result) {
@@ -159,11 +156,14 @@ class ActiveController extends Controller
                 DB::rollBack();
                 return $this->error('活动不存在');
             }
-            if (!empty($request->input('active_name'))) {
+            if (!empty($request->input('active_name', ''))) {
                 $active->active_name = $request->input('active_name');
             }
             if ($request->has('enable')) {
                 $active->enable = $request->input('enable', 0);
+            }
+            if (!empty($request->input('sign_prize_number', 0))) {
+                $active->sign_prize_number = $request->input('sign_prize_number');
             }
             if (!$active->save()) {
                  DB::rollBack();
@@ -176,7 +176,6 @@ class ActiveController extends Controller
                 }
                 $chance = 0;
                 $data = [];
-                $has_must_award_prize = false;
                 $prize->each(function ($item) use ($active_id, &$chance, &$data, &$has_must_award_prize) {
                     if (!isset($item['prize_id'])) {
                         return $this->error('奖品id必须');
@@ -187,21 +186,18 @@ class ActiveController extends Controller
                     if (!isset($item['every_day_number'])) {
                         return $this->error('没天奖品数量必须');
                     }
-                    if (!isset($item['chance'])) {
-                        return $this->error('抽奖概率必须');
+                    if (isset($item['chance']) && $item['chance'] < 0) {
+                        return $this->error('抽奖概率在0~100之间');
                     }
                     $prize_exist = Prize::query()->find($item['prize_id']);
                     if (!$prize_exist) {
                         return $this->error('奖品不存在');
                     }
                     if ($prize_exist['surplus_number'] < $item['prize_number']) {
-                        return $this->error('奖品余量不足');
+                        return $this->error($prize_exist->prize_name . '余量不足');
                     }
                     if ($item['every_day_number'] > $item['prize_number']) {
-                        return $this->error('每天奖品数量不能大于奖品数量');
-                    }
-                    if ($prize_exist->must_award_prize == 1) {
-                        $has_must_award_prize = true;
+                        return $this->error($prize_exist->prize_name . '每天奖品数量不能大于奖品数量');
                     }
                     $data[] = [
                         'active_id' => $active_id,
@@ -210,11 +206,9 @@ class ActiveController extends Controller
                         'active_prize_number' => $item['prize_number'],
                         'active_surplus_number' => $item['prize_number'],
                         'every_day_number' => $item['every_day_number'],
-                        'chance' => $item['chance']
+                        'chance' => $item['chance'] ?? 0
                     ];
-                    if ($prize_exist->must_award_prize == 0) {
-                        $chance += $item['chance'];
-                    }
+                    $chance += $item['chance'] ?? 0;
                 });
                 $active_prize = ActivePrize::query()->find($request->award_id);
                 if (!empty($active_prize)) {
@@ -222,13 +216,16 @@ class ActiveController extends Controller
                         return $this->error('删除原奖品失败');
                     }
                 }
-                if ($chance > 100) {
+                $set_chance_num = collect($prize['prize'])->filter(function ($value, $key) {
+                    return isset($value['chance']) && !empty($value['chance']);
+                });
+                if ($set_chance_num->count() != count($prize['prize']) && $set_chance_num->count() != 0) {
+                    DB::rollBack();
+                    return $this->error('请设置全部奖品概率或使用默认奖品概率');
+                }
+                if ($set_chance_num->count() == count($prize['prize']) && ($chance > 100 || $chance < 0)) {
                     DB::rollBack();
                     return $this->error('抽奖概率在0~100之间');
-                }
-                if (!$has_must_award_prize) {
-                    DB::rollBack();
-                    return $this->error('请添加签到必中奖品');
                 }
                 $result = DB::table('active_prize')->insert($data);
                 if (!$result) {

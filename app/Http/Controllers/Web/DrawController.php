@@ -214,8 +214,31 @@ class DrawController extends Controller
                 return $this->error($valid->errors()->first());
             }
             $wx_user = JWTAuth::parseToken()->authenticate();
+            $must_award = Redis::exists(date('Ymd') . '_php_must_award_' . $wx_user->wx_user_id);
             if ($wx_user['draw_number'] - 1 < 0) {
                 return $this->error('没有抽奖机会了');
+            }
+            // 签到中奖后不再中奖
+            if ($wx_user['sign_win'] == 1) {
+                if (!$this->decDrawNumber()) {
+                    return $this->error('更新抽奖次数失败');
+                }
+                return $this->response([
+                    'prize_id' => 0,
+                    'prize_name' => '谢谢惠顾',
+                    'award_level' => 0
+                ]);
+            }
+            // 普通中奖后还可以签到中奖一次
+            if ($wx_user['general_win'] == 1 && !$must_award) {
+                if (!$this->decDrawNumber()) {
+                    return $this->error('更新抽奖次数失败');
+                }
+                return $this->response([
+                    'prize_id' => 0,
+                    'prize_name' => '谢谢惠顾',
+                    'award_level' => 0
+                ]);
             }
             // 查询抽奖信息
             $active = Active::query()
@@ -228,10 +251,14 @@ class DrawController extends Controller
                 return $this->error('活动不存在');
             }
             $active->prizes;
+            if (empty($active['prizes'])) {
+                return $this->error('没有活动奖品');
+            }
             // 奖项数组
             $chance = 0;
             $data = [];
-            $must_award_prize = [];
+            $prize_count = $active['prizes']->count();
+            $default_chance = intval(50 / $prize_count);
             foreach ($active['prizes'] as $key => $value) {
                 // 奖品没有库存则从奖项数组中剔除
                 if ($value['active_surplus_number'] <= 0) {
@@ -249,13 +276,10 @@ class DrawController extends Controller
                 } else {
                     Redis::setex($keyword, 90000, 0);
                 }
-                // 签到必中奖品不放入奖项数组
-                if ($value['must_award_prize'] == 1) {
-                    $must_award_prize[]['prize_id'] = $value['prize_id'];
-                    $must_award_prize[]['prize_name'] = $value['prize_name'];
-                    $must_award_prize[]['chance'] = $value['chance'];
-                    $must_award_prize[]['award_level'] = $value['award_level'];
-                    continue;
+                if (empty($value['chance'])) {
+                    $chance += $default_chance;
+                } else {
+                    $chance += $value['chance'];
                 }
                 $chance += $value['chance'];
                 $data[$key]['prize_id'] = $value['prize_id'];
@@ -263,20 +287,27 @@ class DrawController extends Controller
                 $data[$key]['chance'] = $value['chance'];
                 $data[$key]['award_level'] = $value['award_level'];
             }
-            $must_award = Redis::exists(date('Ymd') . '_php_must_award_' . $wx_user->wx_user_id);
             if ($must_award) {
-                if (empty($must_award_prize)) {
-                    Log::warning(
-                        '没有必中奖品或必中奖品库存不足',
-                        [
-                            'wx_user_id' => $wx_user->wx_user_id,
-                            'wx_nickname' => $wx_user->wx_nickname,
-                            'active_id' => $active->active_id
-                        ]);
-                } else {
-                    $data = $must_award_prize;
-                }
                 $result = Redis::del(date('Ymd') . '_php_must_award_' . $wx_user->wx_user_id);
+                $sign_prize_key = date('Ymd') . '_php_sign_prize_num_' . $active->active_id;
+                $sign_prize = Redis::exists($sign_prize_key);
+                if ($sign_prize) {
+                    // 没有签到奖品返回未中奖
+                    $sign_prize_num = Redis::get($sign_prize_key);
+                    if ($sign_prize_num >= $active->sign_prize_number) {
+                        if (!$this->decDrawNumber()) {
+                            return $this->error('更新抽奖次数失败');
+                        }
+                        return $this->response([
+                            'prize_id' => 0,
+                            'prize_name' => '谢谢惠顾',
+                            'award_level' => 0
+                        ]);
+                    }
+                    Redis::incr($sign_prize_key);
+                } else {
+                    Redis::setex($sign_prize_key, 90000, 0);
+                }
                 if (empty($result)) {
                     return $this->error('更新连续签到必中失败');
                 }
@@ -291,14 +322,12 @@ class DrawController extends Controller
                 }
             }
             // 开始抽奖
-            DB::beginTransaction();
             $award = $this->getRand($data);
             // 更新抽奖次数
-            $wx_user->decrement('draw_number');
-            if (!$wx_user->save()) {
-                DB::rollBack();
-                return $this->error('更新用户抽奖次数失败');
+            if (!$this->decDrawNumber()) {
+                return $this->error('更新抽奖次数失败');
             }
+            DB::beginTransaction();
             // 中将处理
             if ($award['award_level'] != 0) {
                 // 检查库存
@@ -327,11 +356,7 @@ class DrawController extends Controller
                 $prize = Prize::query()->find($award['prize_id']);
                 if (empty($prize) || $prize->surplus_number - 1 < 0) {
                     DB::rollBack();
-                    return $this->response([
-                        'prize_id' => 0,
-                        'prize_name' => '谢谢惠顾',
-                        'award_level' => 0
-                    ]);
+                    return $this->error('更新奖品库存失败');
                 }
                 $prize->decrement('surplus_number');
                 if (!$prize->save()) {
@@ -346,16 +371,28 @@ class DrawController extends Controller
                 $award_record->active_id = $active['active_id'];
                 $award_record->wx_user_id = $wx_user['wx_user_id'];
                 $award_record->wx_nickname = $wx_user['wx_nickname'];
+                $award_record->award_type = $must_award ? 1 : 0;
                 if (!$award_record->save()) {
                     DB::rollBack();
                     return $this->error('写入中奖信息失败');
+                }
+                // 更新是否中奖字段
+                if ($must_award) {
+                    $wx_user->sign_win = 1;
+                } else {
+                    $wx_user->general_win = 1;
+                }
+                if (!$wx_user->save()) {
+                    DB::rollBack();
+                    return $this->error('更新用户是否能中奖失败');
                 }
                 // 抽奖成功
                 DB::commit();
                 return $this->response([
                     'prize_id' => $award['prize_id'],
                     'prize_name' => $award['prize_name'],
-                    'award_level' => $award['award_level']
+                    'award_level' => $award['award_level'],
+                    'award_type' => $must_award ? 1 : 0
                 ]);
             } else {
                 DB::commit();
@@ -372,8 +409,33 @@ class DrawController extends Controller
         }
     }
 
-    // 增加中奖次数
-    function incDrawNumber(Request $request)
+    /**
+     * 减少抽奖次数
+     * @return bool
+     */
+    protected function decDrawNumber()
+    {
+        try {
+            DB::beginTransaction();
+            $wx_user = JWTAuth::parseToken()->authenticate();
+            $wx_user->decrement('draw_number');
+            if (!$wx_user->save()) {
+                DB::rollBack();
+                return false;
+            }
+            DB::commit();
+            return true;
+        } catch (\Exception $exception) {
+            DB::rollBack();
+            Log::error($exception->getMessage());
+            return false;
+        }
+    }
+
+    /*
+     * 增加抽奖次数
+     */
+    public function incDrawNumber(Request $request)
     {
         try {
             $wx_user = JWTAuth::parseToken()->authenticate();

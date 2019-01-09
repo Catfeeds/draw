@@ -29,7 +29,6 @@ class PrizeController extends Controller
             'prize_name' => 'required',
             'total_number' => 'required|integer',
             'image' => 'image',
-            'must_award_prize' => 'integer'
         ]);
         if ($valid->fails()) {
             return $this->error($valid->errors()->first());
@@ -46,7 +45,6 @@ class PrizeController extends Controller
         $prize->total_number = $request->post('total_number');
         $prize->surplus_number = $request->post('total_number');
         $prize->description = $request->post('description', '');
-        $prize->must_award_prize = $request->post('must_award_prize', 0);
         $prize->lock_number = 0;
 
         if ($prize->save()) {
@@ -93,7 +91,6 @@ class PrizeController extends Controller
             'id' => 'required|integer',
             'total_number' => 'integer',
             'image' => 'image',
-            'must_award_prize' => 'integer'
         ]);
         if ($valid->fails()) {
             return $this->error($valid->errors()->first());
@@ -113,9 +110,6 @@ class PrizeController extends Controller
         $prize->surplus_number = $prize->surplus_number + $diff;
         if ($request->total_number) {
             $prize->total_number = $request->total_number;
-        }
-        if ($request->must_award_prize) {
-            $prize->must_award_prize = $request->must_award_prize;
         }
         $prize->updated_at = time();
         if ($prize->save()) {
