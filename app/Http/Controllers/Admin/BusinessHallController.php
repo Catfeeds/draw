@@ -133,6 +133,7 @@ class BusinessHallController extends Controller
             ->with(['prizes' => function ($query) {
                 $query->select([
                     'business_hall_id',
+                    'prize_name',
                     'business_prize_number',
                     'business_surplus_number',
                     'lock_prize_number'
