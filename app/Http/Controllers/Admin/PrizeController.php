@@ -202,4 +202,45 @@ class PrizeController extends Controller
             return $this->error($exception->getMessage());
         }
     }
+
+    /**
+     * 删除分配奖品
+     * @param Request $request
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function deleteBusinessPrize(Request $request)
+    {
+        try {
+            $valid = Validator::make($request->all(), [
+                'business_id' => 'required|integer',
+                'prize_id' => 'required|integer',
+            ]);
+            if ($valid->fails()) {
+                return $this->error($valid->errors()->first());
+            }
+            $business_prize = BusinessHallPrize::query()
+                ->where('business_hall_id', $request->business_id)
+                ->where('prize_id', $request->prize_id)
+                ->first();
+            DB::beginTransaction();
+            if (!empty($business_prize)) {
+                $prize = Prize::query()->find($request->prize_id);
+                $prize->increment('surplus_number', $business_prize->business_surplus_number);
+                if (!$prize->save()) {
+                    DB::rollBack();
+                    return $this->error('更新奖品表库存失败');
+                }
+                if (!$business_prize->delete()) {
+                    DB::rollBack();
+                    return $this->error('更新奖品表库存失败');
+                }
+            }
+            DB::commit();
+            return $this->success('删除成功');
+        } catch (\Exception $exception) {
+            DB::rollBack();
+            Log::error($exception->getMessage());
+            return $this->error($exception->getMessage());
+        }
+    }
 }

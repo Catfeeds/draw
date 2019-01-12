@@ -45,6 +45,8 @@ Route::group(['namespace' => 'Admin',], function () {
     Route::get('confirm', 'BusinessHallController@confirm');
     //  分配奖品到营业厅
     Route::post('business', 'PrizeController@businessPrize');
+    // 删除分配奖品
+    Route::delete('business', 'PrizeController@deleteBusinessPrize');
     // 营业厅列表
     Route::get('business', 'BusinessHallController@businessList');
     // 省份列表
