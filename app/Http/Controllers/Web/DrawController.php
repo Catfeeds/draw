@@ -127,6 +127,10 @@ class DrawController extends Controller
                 ->where('enable', 1)
                 ->orderBy('created_at', 'desc')
                 ->first();
+
+            if (empty($active)) {
+                return $this->error('没有可用活动');
+            }
             $active->prizes;
 
             // 每日第一次登陆签到
