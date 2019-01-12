@@ -119,7 +119,7 @@ class ImageController extends Controller
         $list = Image::query()
             ->where('enable', 1)
             ->orderBy('sort', 'desc')->get();
-        $prefix = env('IMAGE_RUL');
+        $prefix = env('IMAGE_URL');
         if ($list->isNotEmpty()) {
             $list = $list->each(function ($item, $index) use ($prefix) {
                 $item->image = $prefix . $item->image;
@@ -137,7 +137,7 @@ class ImageController extends Controller
     {
         $image = Image::find($image_id);
         if (!empty($image)) {
-            $prefix = env('IMAGE_RUL');
+            $prefix = env('IMAGE_URL');
             $image->image = $prefix . $image->image;
         }
         return $this->response($image);
