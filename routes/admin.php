@@ -56,6 +56,13 @@ Route::group(['namespace' => 'Admin',], function () {
     // 中奖记录
     Route::get('award', 'WxUserController@awardRecord');
 
+    // 上传图片
+    Route::post('image', 'ImageController@addImage');
+    // 修改图片
+    Route::post('update/image', 'ImageController@updateImage');
+    // 删除图片
+    Route::delete('image', 'ImageController@deleteImage');
+
     // 随机生成账号
     Route::get('generate', 'AdminUserController@generateAccount');
 });
