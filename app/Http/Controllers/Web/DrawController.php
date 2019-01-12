@@ -47,6 +47,8 @@ class DrawController extends Controller
             $response = Curl::to($url)->get();
             $response = json_decode($response, true);
 
+            Log::debug('wx', $response);
+
             if (isset($response['errcode'])) {
                 return $this->error($response['errmsg']);
             }
