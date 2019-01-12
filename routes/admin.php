@@ -62,6 +62,10 @@ Route::group(['namespace' => 'Admin',], function () {
     Route::post('update/image', 'ImageController@updateImage');
     // 删除图片
     Route::delete('image', 'ImageController@deleteImage');
+    // 图片列表
+    Route::get('image', 'ImageController@getImage');
+    // 根据id查询图片
+    Route::get('image/{image_id}', 'ImageController@getOneImage');
 
     // 随机生成账号
     Route::get('generate', 'AdminUserController@generateAccount');

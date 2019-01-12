@@ -6,6 +6,7 @@ use App\Model\Image;
 use Illuminate\Http\Request;
 use App\Http\Controllers\Controller;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Storage;
 use Validator;
 
 class ImageController extends Controller
@@ -31,7 +32,7 @@ class ImageController extends Controller
             }
             $image_path = $request->file('image')->store('images');
             $image = new Image;
-            $image->url = $request->url;
+            $image->url = $request->input('url', '');
             $image->image = $image_path;
             $image->sort = $request->input('sort', 0);
             $image->enable = $request->input('enable', 1);
@@ -70,17 +71,16 @@ class ImageController extends Controller
             $file = $request->file('image');
             if (!empty($file)) {
                 $image_path = $request->file('image')->store('images');
+                Storage::delete($image->image);
                 $image->image = $image_path;
             }
             if (!empty($url)) {
-                $image->url = $request->url;
+                $image->url = $url;
             }
             if (!empty($sort)) {
-                $image->url = $request->sort;
+                $image->sort = $sort;
             }
-            if (!empty($enable)) {
-                $image->url = $request->enable;
-            }
+            $image->enable = $enable;
             if (!$image->save()) {
                 return $this->error('修改失败');
             }
@@ -101,10 +101,37 @@ class ImageController extends Controller
         if (empty($image_id)) {
             return $this->error('image_id必须');
         }
-        $image = Image::destroy($image_id);
-        if ($image) {
+        $image = Image::find($image_id);
+        if ($image->delete()) {
+            Storage::delete($image->image);
             return $this->success('删除成功');
         }
         return $this->error('删除失败');
+    }
+
+    /**
+     * 图片列表
+     * @param Request $request
+     * @return \Illuminate\Database\Eloquent\Builder[]|\Illuminate\Database\Eloquent\Collection
+     */
+    public function getImage(Request $request)
+    {
+        $list = Image::query()
+            ->where('enable', 1)
+            ->orderBy('sort', 'desc')->get();
+        $list = $list->each(function ($item, $index) {
+            $item->image = Storage::url($item->image);
+        });
+        return $this->response($list);
+    }
+
+    /**
+     * 根据id获取图片
+     * @param $image_id
+     * @return mixed
+     */
+    public function getOneImage($image_id)
+    {
+        return Image::find($image_id);
     }
 }
