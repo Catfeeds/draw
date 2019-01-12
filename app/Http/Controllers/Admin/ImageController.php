@@ -119,9 +119,12 @@ class ImageController extends Controller
         $list = Image::query()
             ->where('enable', 1)
             ->orderBy('sort', 'desc')->get();
-        $list = $list->each(function ($item, $index) {
-            $item->image = Storage::url($item->image);
-        });
+        $prefix = env('IMAGE_RUL');
+        if ($list->isNotEmpty()) {
+            $list = $list->each(function ($item, $index) use ($prefix) {
+                $item->image = $prefix . $item->image;
+            });
+        }
         return $this->response($list);
     }
 
@@ -132,6 +135,11 @@ class ImageController extends Controller
      */
     public function getOneImage($image_id)
     {
-        return Image::find($image_id);
+        $image = Image::find($image_id);
+        if (!empty($image)) {
+            $prefix = env('IMAGE_RUL');
+            $image->image = $prefix . $image->image;
+        }
+        return $this->response($image);
     }
 }
