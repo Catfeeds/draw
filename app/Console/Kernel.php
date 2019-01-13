@@ -28,7 +28,8 @@ class Kernel extends ConsoleKernel
         //          ->hourly();
         $schedule->command('release:prize')
             ->timezone('Asia/Shanghai')
-            ->dailyAt('1:00');
+//            ->dailyAt('1:00');
+            ->everyMinute();
     }
 
     /**
