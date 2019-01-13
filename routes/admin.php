@@ -68,6 +68,12 @@ Route::group(['namespace' => 'Admin',], function () {
     Route::get('image', 'ImageController@getImage');
     // 根据id查询图片
     Route::get('image/{image_id}', 'ImageController@getOneImage');
+    // 添加活动奖品
+    Route::post('active/prize', 'ActiveController@addActivePrize');
+    // 修改活动奖品
+    Route::put('active/prize', 'ActiveController@updateActivePrize');
+    // 删除活动奖品
+    Route::delete('active/prize', 'ActiveController@deleteActivePrize');
 
     // 随机生成账号
     Route::get('generate', 'AdminUserController@generateAccount');
