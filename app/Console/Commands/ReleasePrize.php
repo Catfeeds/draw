@@ -42,6 +42,7 @@ class ReleasePrize extends Command
     public function handle()
     {
         try {
+            Log::debug('release prize');
             DB::beginTransaction();
             $time = time();
             $res = Award::query()
