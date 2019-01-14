@@ -26,10 +26,11 @@ class Kernel extends ConsoleKernel
     {
         // $schedule->command('inspire')
         //          ->hourly();
+        $expression = env('CRON');
         $schedule->command('release:prize')
             ->timezone('Asia/Shanghai')
 //            ->dailyAt('1:00');
-            ->everyMinute();
+            ->cron($expression);
     }
 
     /**
