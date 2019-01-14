@@ -6,6 +6,7 @@ use App\Model\Active;
 use App\Model\ActivePrize;
 use App\Model\Award;
 use App\Model\BusinessHall;
+use App\Model\Image;
 use App\Model\Prize;
 use App\Model\Sign;
 use App\Model\WxUser;
@@ -490,6 +491,40 @@ class DrawController extends Controller
             ->where('province', $province)
             ->groupBy('area')->get();
         return $this->response($area);
+    }
+
+    /**
+     * 图片列表
+     * @param Request $request
+     * @return \Illuminate\Database\Eloquent\Builder[]|\Illuminate\Database\Eloquent\Collection
+     */
+    public function getImage(Request $request)
+    {
+        $list = Image::query()
+            ->where('enable', 1)
+            ->orderBy('sort', 'desc')->get();
+        $prefix = env('IMAGE_URL');
+        if ($list->isNotEmpty()) {
+            $list = $list->each(function ($item, $index) use ($prefix) {
+                $item->image = $prefix . $item->image;
+            });
+        }
+        return $this->response($list);
+    }
+
+    /**
+     * 根据id获取图片
+     * @param $image_id
+     * @return mixed
+     */
+    public function getOneImage($image_id)
+    {
+        $image = Image::find($image_id);
+        if (!empty($image)) {
+            $prefix = env('IMAGE_URL');
+            $image->image = $prefix . $image->image;
+        }
+        return $this->response($image);
     }
 
     /**

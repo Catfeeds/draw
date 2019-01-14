@@ -43,4 +43,9 @@ Route::group(['namespace' => 'Web',], function () {
     Route::get('surplus_number', 'AwardController@businessPrize');
     // 保存用户信息
     Route::post('bind/user', 'DrawController@saveWxUserInfo');
+
+    // 图片列表
+    Route::get('image', 'DrawController@getImage');
+    // 根据id查询图片
+    Route::get('image/{image_id}', 'DrawController@getOneImage');
 });
