@@ -21,9 +21,9 @@ class EventServiceProvider extends ServiceProvider
         'App\Events\SomeEvent' => [
             'App\Listeners\EventListener',
         ],
-        'Illuminate\Database\Events\QueryExecuted' => [
-            'App\Listeners\QueryListener'
-        ]
+//        'Illuminate\Database\Events\QueryExecuted' => [
+//            'App\Listeners\QueryListener'
+//        ]
     ];
 
     /**
