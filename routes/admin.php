@@ -17,7 +17,7 @@ Route::middleware('auth:api')->get('/user', function (Request $request) {
     return $request->user();
 });
 
-Route::group(['namespace' => 'Admin',], function () {
+Route::group(['namespace' => 'Admin', 'middleware' => ['cors']], function () {
     Route::get('login', 'AdminUserController@login')->name('login');
     Route::post('register', 'AdminUserController@register');
     Route::post('logout', 'AdminUserController@logout');
