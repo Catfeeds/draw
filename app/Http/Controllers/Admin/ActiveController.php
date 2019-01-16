@@ -148,7 +148,7 @@ class ActiveController extends Controller
                 'prize_id' => 'required|integer',
                 'active_prize_number' => 'required|integer',
                 'every_day_number' => 'required|integer',
-                'chance' => 'required|integer',
+//                'chance' => 'required|integer',
             ]);
             if ($valid->fails()) {
                 return $this->error($valid->errors()->first());
@@ -175,11 +175,11 @@ class ActiveController extends Controller
                 return $this->error('奖品已经添加');
             }
             DB::beginTransaction();
-            $active_prize = ActivePrize::query()->where('active_id', $request->active_id)->get(['chance']);
-            $chance = $active_prize->sum('chance');
-            if ($chance + $request->chance > 100) {
-                return $this->error('奖品概率为0~100');
-            }
+//            $active_prize = ActivePrize::query()->where('active_id', $request->active_id)->get(['chance']);
+//            $chance = $active_prize->sum('chance');
+//            if ($chance + $request->chance > 100) {
+//                return $this->error('奖品概率为0~100');
+//            }
             $model = new ActivePrize;
             $model->active_id = $request->active_id;
             $model->prize_id = $request->prize_id;
@@ -187,7 +187,7 @@ class ActiveController extends Controller
             $model->active_prize_number = $request->active_prize_number;
             $model->active_surplus_number = $request->active_prize_number;
             $model->every_day_number = $request->every_day_number;
-            $model->chance = $request->chance;
+//            $model->chance = $request->chance;
             if (!$model->save()) {
                 DB::rollBack();
                 return $this->error('添加奖品失败');
@@ -237,16 +237,16 @@ class ActiveController extends Controller
                 return $this->error('奖品不存在');
             }
             DB::beginTransaction();
-            if ($request->has('chance')) {
-                $chance = ActivePrize::query()
-                    ->where('active_id', $request->active_id)
-                    ->where('prize_id', '<>', $request->prize_id)
-                    ->sum('chance');
-                if ($chance + $request->chance > 100) {
-                    return $this->error('奖品概率为0~100');
-                }
-                $active_prize->chance = $request->chance;
-            }
+//            if ($request->has('chance')) {
+//                $chance = ActivePrize::query()
+//                    ->where('active_id', $request->active_id)
+//                    ->where('prize_id', '<>', $request->prize_id)
+//                    ->sum('chance');
+//                if ($chance + $request->chance > 100) {
+//                    return $this->error('奖品概率为0~100');
+//                }
+//                $active_prize->chance = $request->chance;
+//            }
             if ($request->has('active_prize_number')) {
                 $active_prize_number = $request->active_prize_number - $active_prize->active_prize_number;
                 if ($prize->surplus_number - $active_prize_number < 0) {
