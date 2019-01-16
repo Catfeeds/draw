@@ -25,7 +25,7 @@ class Kernel extends ConsoleKernel
      */
     protected function schedule(Schedule $schedule)
     {
-        $expression = env('CRON', '* */1 * * *');
+        $expression = env('CRON', '* * */1 * *');
 
         $schedule->command('release:prize')
             ->timezone('Asia/Shanghai')
