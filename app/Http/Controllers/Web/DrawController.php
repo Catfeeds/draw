@@ -446,7 +446,7 @@ class DrawController extends Controller
     {
         try {
             $wx_user = JWTAuth::parseToken()->authenticate();
-            $keyword = 'php_draw_num_' . $wx_user->wx_user_id . '_' . date('Ymd');
+            $keyword = date('Ymd') . '_php_draw_num_' . $wx_user->wx_user_id;
             $exists = Redis::exists($keyword);
             if ($exists) {
                 return $this->error('今日已经分享过');
