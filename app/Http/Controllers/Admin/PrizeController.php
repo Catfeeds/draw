@@ -129,24 +129,13 @@ class PrizeController extends Controller
         $per_page = $request->input('per_page', 10);
         $prize_name = $request->input('prize_name', '');
         if (empty($prize_name)) {
-            $list = DB::table('prize')
-                ->leftJoin('active_prize', 'prize.prize_id', '=', 'active_prize.prize_id')
-                ->select([DB::raw(
-                    'any_value(prize.prize_id) as prize_id, any_value(prize.prize_name) as prize_name, 
-                    sum(active_prize.active_surplus_number) + surplus_number as surplus_number,
-                    any_value(total_number) as total_number'
-                )])
-                ->groupBy('prize.prize_id')
+            $list = Prize::query()
+                ->orderBy('created_at', 'desc')
                 ->paginate($per_page, ['*'], 'page', $page);
         } else {
-            $list = DB::table('prize')
-                ->leftJoin('active_prize', 'prize.prize_id', '=', 'active_prize.prize_id')
-                ->select([DB::raw(
-                    'any_value(prize.prize_id) as prize_id, any_value(prize.prize_name) as prize_name, 
-                    sum(active_prize.active_surplus_number) + surplus_number as surplus_number'
-                )])
+            $list = Prize::query()
                 ->where('prize_name', $prize_name)
-                ->groupBy('prize.prize_id')
+                ->orderBy('created_at', 'desc')
                 ->paginate($per_page, ['*'], 'page', $page);
         }
         return $this->success($list);

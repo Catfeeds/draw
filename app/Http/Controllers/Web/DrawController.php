@@ -348,8 +348,6 @@ class DrawController extends Controller
                 }
             }
 
-            Log::debug('draw', $data);
-
             // 开始抽奖
             $award = $this->getRand($data);
             // 更新抽奖次数

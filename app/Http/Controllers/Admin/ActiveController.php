@@ -161,9 +161,17 @@ class ActiveController extends Controller
             if (empty($prize)) {
                 return $this->error('奖品不存在');
             }
-            if ($prize->surplus_number - $request->active_prize_number < 0) {
-                return $this->error('奖品还有' . $prize->surplus_number . '，余量不足' . $request->active_prize_number);
+            // 库存检查
+            $prize_number = ActivePrize::query()
+                ->where('prize_id', $request->prize_id)
+                ->sum('active_prize_number');
+            if ($prize->total_number - $prize_number < $request->active_prize_number) {
+                return $this->error('奖品库存不足' . $request->active_prize_number);
             }
+
+//            if ($prize->surplus_number - $request->active_prize_number < 0) {
+//                return $this->error('奖品还有' . $prize->surplus_number . '，余量不足' . $request->active_prize_number);
+//            }
             if ($request->active_prize_number < $request->every_day_number) {
                 return $this->error('活动奖品数量不能小于每日奖品数量');
             }
@@ -192,11 +200,12 @@ class ActiveController extends Controller
                 DB::rollBack();
                 return $this->error('添加奖品失败');
             }
-            $prize->decrement('surplus_number', $request->active_prize_number);
-            if (!$prize->save()) {
-                DB::rollBack();
-                return $this->error('更新奖品库存失败');
-            }
+
+//            $prize->decrement('surplus_number', $request->active_prize_number);
+//            if (!$prize->save()) {
+//                DB::rollBack();
+//                return $this->error('更新奖品库存失败');
+//            }
             DB::commit();
             return $this->success();
         } catch (\Exception $exception) {
