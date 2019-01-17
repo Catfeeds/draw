@@ -129,13 +129,24 @@ class PrizeController extends Controller
         $per_page = $request->input('per_page', 10);
         $prize_name = $request->input('prize_name', '');
         if (empty($prize_name)) {
-            $list = Prize::query()
-                ->orderBy('created_at', 'desc')
+            $list = DB::table('prize')
+                ->leftJoin('active_prize', 'prize.prize_id', '=', 'active_prize.prize_id')
+                ->select([DB::raw(
+                    'any_value(prize.prize_id) as prize_id, any_value(prize.prize_name) as prize_name, 
+                    sum(active_prize.active_surplus_number) + surplus_number as surplus_number,
+                    any_value(total_number) as total_number'
+                )])
+                ->groupBy('prize.prize_id')
                 ->paginate($per_page, ['*'], 'page', $page);
         } else {
-            $list = Prize::query()
+            $list = DB::table('prize')
+                ->leftJoin('active_prize', 'prize.prize_id', '=', 'active_prize.prize_id')
+                ->select([DB::raw(
+                    'any_value(prize.prize_id) as prize_id, any_value(prize.prize_name) as prize_name, 
+                    sum(active_prize.active_surplus_number) + surplus_number as surplus_number'
+                )])
                 ->where('prize_name', $prize_name)
-                ->orderBy('created_at', 'desc')
+                ->groupBy('prize.prize_id')
                 ->paginate($per_page, ['*'], 'page', $page);
         }
         return $this->success($list);
@@ -159,15 +170,12 @@ class PrizeController extends Controller
                 return $this->error($valid->errors()->first());
             }
             // 检查奖品库存
+            $prize_number = BusinessHallPrize::query()
+                ->where('prize_id', $request->prize_id)
+                ->sum('business_prize_number');
             $prize = Prize::query()->find($request->prize_id);
-            if (empty($prize) || $prize->surplus_number - $request->prize_number < 0) {
+            if (empty($prize) || $prize->total_number - $prize_number < $request->prize_number) {
                 return $this->error('奖品库存不足' . $request->prize_number);
-            }
-            // 减库存
-            $prize->decrement('surplus_number', $request->prize_number);
-            if (!$prize->save()) {
-                DB::rollBack();
-                return $this->error('更新奖品表库存失败');
             }
             // 营业厅没有奖品添加奖品，已有更新库存
             $business_prize = BusinessHallPrize::query()

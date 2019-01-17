@@ -48,8 +48,6 @@ class DrawController extends Controller
             $response = Curl::to($url)->get();
             $response = json_decode($response, true);
 
-            Log::debug('wx', $response);
-
             if (isset($response['errcode'])) {
                 return $this->error($response['errmsg']);
             }
@@ -63,9 +61,18 @@ class DrawController extends Controller
                 }
             }
 
-            $token = auth('api')->fromUser($wx_user);
+            // 是否填写姓名和手机号
+            if (empty($wx_user->real_name) || empty($wx_user->phone)) {
+                $is_identify = false;
+                $token = '';
+            } else {
+                $is_identify = true;
+                $token = auth('api')->fromUser($wx_user);
+            }
+
             return $this->response([
                 'token' => $token,
+                'is_identify' => $is_identify,
                 'unionid' => isset($response['unionid']) ? $response['unionid'] : '',
                 'token_type' => 'bearer',
                 'expire_in' => auth('api')->factory()->getTTL() * 60
@@ -90,6 +97,18 @@ class DrawController extends Controller
         $country = $request->input('country', '');
         $city = $request->input('city', '');
         $province = $request->input('province', '');
+        $real_name = $request->input('real_name', '');
+        $phone = $request->input('phone', '');
+        $preg_name='/^[\x{4e00}-\x{9fa5}]{2,10}$|^[a-zA-Z\s]*[a-zA-Z\s]{2,20}$/isu';
+        if(!preg_match($preg_name, $real_name)) {
+            return $this->error('请输入真实姓名');
+        }
+        $preg_phone='/^1[34578]\d{9}$/ims';
+        if(!preg_match($preg_phone, $phone)) {
+            return $this->error('请输入真实手机号');
+        }
+        $wx_user->real_name = $real_name;
+        $wx_user->phone = $phone;
         if (!empty($head)) {
             $wx_user->head = $head;
         }
