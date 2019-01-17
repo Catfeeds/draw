@@ -339,7 +339,7 @@ class DrawController extends Controller
             }
             DB::beginTransaction();
             // 中将处理
-            if ($award['award_level'] != 0) {
+            if ($award['prize_id'] != 0) {
                 // 检查库存
                 $active_prize = ActivePrize::query()->sharedLock()->where([
                     'active_id' => $active->active_id,
