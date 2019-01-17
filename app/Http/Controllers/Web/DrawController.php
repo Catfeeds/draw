@@ -291,7 +291,7 @@ class DrawController extends Controller
                 $chance += $value['chance'];
                 $data[$key]['prize_id'] = $value['prize_id'];
                 $data[$key]['prize_name'] = $value['prize_name'];
-                $data[$key]['chance'] = $value['chance'];
+                $data[$key]['chance'] = $default_chance;
                 $data[$key]['award_level'] = $value['award_level'];
             }
             if ($must_award) {
