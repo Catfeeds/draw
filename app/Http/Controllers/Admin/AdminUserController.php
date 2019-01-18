@@ -47,9 +47,16 @@ class AdminUserController extends Controller
      */
     public function login()
     {
+        $source = request(['source']);
+        if (empty($source)) {
+            return $this->error('Unauthorized', 401);
+        }
         $credentials = request(['username', 'password']);
 
         if (!$token = auth('admin')->attempt($credentials)) {
+            return $this->error('Unauthorized', 401);
+        }
+        if ($source == 'pc' && auth('admin')->user()->username != 'admin') {
             return $this->error('Unauthorized', 401);
         }
         return $this->response([
