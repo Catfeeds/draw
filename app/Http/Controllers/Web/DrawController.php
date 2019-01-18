@@ -24,7 +24,7 @@ class DrawController extends Controller
 {
     public function __construct()
     {
-        $this->middleware('auth:api', ['except' => ['login', 'saveWxUserInfo']]);
+        $this->middleware('auth:api', ['except' => ['login']]);
     }
 
     /**
@@ -64,14 +64,12 @@ class DrawController extends Controller
             // 是否填写姓名和手机号
             if (empty($wx_user->real_name) || empty($wx_user->phone)) {
                 $is_identify = false;
-                $token = '';
             } else {
                 $is_identify = true;
-                $token = auth('api')->fromUser($wx_user);
             }
 
             return $this->response([
-                'token' => $token,
+                'token' => auth('api')->fromUser($wx_user),
                 'is_identify' => $is_identify,
                 'unionid' => isset($response['unionid']) ? $response['unionid'] : '',
                 'token_type' => 'bearer',
