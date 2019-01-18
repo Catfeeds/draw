@@ -88,7 +88,7 @@ class AwardController extends Controller
             $code = '';
             for ($i = 0; $i < 5; $i++) {
                 $random_str = str_random(8);
-                $exists = ExchangeCode::query()->where('exchange_code', $random_str)->count();
+                $exists = Award::query()->where('exchange_code', $random_str)->count();
                 if (!$exists) {
                     $code = $random_str;
                     break;
